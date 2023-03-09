@@ -55,8 +55,7 @@ def try_array_function_override(func, overloaded_args, types, args, kwargs):
             return True, result
 
     raise TypeError(
-        "no implementation found for {} on types that implement "
-        "__ivy_array_function__: {}".format(func, list(map(type, overloaded_args)))
+        f"no implementation found for {func} on types that implement __ivy_array_function__: {list(map(type, overloaded_args))}"
     )
 
 
@@ -64,16 +63,18 @@ def _get_first_array(*args, **kwargs):
     # ToDo: make this more efficient, with function ivy.nested_nth_index_where
     arr = None
     if args:
-        arr_idxs = ivy.nested_argwhere(args, ivy.is_array, stop_after_n_found=1)
-        if arr_idxs:
+        if arr_idxs := ivy.nested_argwhere(
+            args, ivy.is_array, stop_after_n_found=1
+        ):
             arr = ivy.index_nest(args, arr_idxs[0])
-        else:
-            arr_idxs = ivy.nested_argwhere(kwargs, ivy.is_array, stop_after_n_found=1)
-            if arr_idxs:
-                arr = ivy.index_nest(kwargs, arr_idxs[0])
+        elif arr_idxs := ivy.nested_argwhere(
+            kwargs, ivy.is_array, stop_after_n_found=1
+        ):
+            arr = ivy.index_nest(kwargs, arr_idxs[0])
     elif kwargs:
-        arr_idxs = ivy.nested_argwhere(kwargs, ivy.is_array, stop_after_n_found=1)
-        if arr_idxs:
+        if arr_idxs := ivy.nested_argwhere(
+            kwargs, ivy.is_array, stop_after_n_found=1
+        ):
             arr = ivy.index_nest(kwargs, arr_idxs[0])
     return arr
 
@@ -85,11 +86,10 @@ def _build_view(original, view, fn, args, kwargs, index=None):
             "when performing inplace updates with this backend"
         )
         base = original._base
-        view._base = base
         view._manipulation_stack = python_copy.copy(original._manipulation_stack)
     else:
         base = original
-        view._base = base
+    view._base = base
     base._view_refs.append(weakref.ref(view))
     view._manipulation_stack.append((fn, args[1:], kwargs, index))
     return view
@@ -111,23 +111,26 @@ def handle_array_function(func):
         overloaded_args = []
 
         for arg in args + tuple(kwargs.values()):
-            if ivy.exists(arg) and (
-                not isinstance(arg, ivy.Container)
-                and hasattr(arg, "__ivy_array_function__")
+            if (
+                ivy.exists(arg)
+                and (
+                    not isinstance(arg, ivy.Container)
+                    and hasattr(arg, "__ivy_array_function__")
+                )
+                and type(arg) not in overloaded_types
             ):
-                if type(arg) not in overloaded_types:
-                    overloaded_types.append(type(arg))
-                    if (
-                        arg.__ivy_array_function__
-                        is not ivy.Array.__ivy_array_function__
-                        and not isinstance(arg, (ivy.Array, ivy.NativeArray))
-                    ):
-                        index = len(overloaded_args)
-                        for i, old_arg in enumerate(overloaded_args):
-                            if issubclass(type(arg), type(old_arg)):
-                                index = i
-                                break
-                        overloaded_args.insert(index, arg)
+                overloaded_types.append(type(arg))
+                if (
+                    arg.__ivy_array_function__
+                    is not ivy.Array.__ivy_array_function__
+                    and not isinstance(arg, (ivy.Array, ivy.NativeArray))
+                ):
+                    index = len(overloaded_args)
+                    for i, old_arg in enumerate(overloaded_args):
+                        if issubclass(type(arg), type(old_arg)):
+                            index = i
+                            break
+                    overloaded_args.insert(index, arg)
             if ivy.exists(arg) and isinstance(arg, ivy.Container):
                 arg = ivy.Container.cont_flatten_key_chains(arg)
                 indices = ivy.nested_argwhere(
@@ -152,9 +155,7 @@ def handle_array_function(func):
         success, value = try_array_function_override(
             ivy.__dict__[func.__name__], overloaded_args, overloaded_types, args, kwargs
         )
-        if success:
-            return value
-        return func(*args, **kwargs)
+        return value if success else func(*args, **kwargs)
 
     new_func.handle_array_function = True
     return new_func
@@ -397,11 +398,8 @@ def handle_view_indexing(fn: Callable) -> Callable:
         ret = fn(*args, **kwargs)
         if ivy.backend in ("numpy", "torch") or not ivy.is_ivy_array(args[0]):
             return ret
-        if kwargs:
-            query = kwargs["query"]
-        else:
-            query = args[1]
-        query = (query,) if not isinstance(query, tuple) else query
+        query = kwargs["query"] if kwargs else args[1]
+        query = query if isinstance(query, tuple) else (query, )
         if [i for i in query if not isinstance(i, (slice, int))]:
             return ret
         original = args[0]
@@ -612,8 +610,8 @@ def handle_nestable(fn: Callable) -> Callable:
         # if any of the arguments or keyword arguments passed to the function contains
         # a container, get the container's version of the function and call it using
         # the passed arguments.
-        if hasattr(ivy.Container, "static_" + fn_name):
-            cont_fn = getattr(ivy.Container, "static_" + fn_name)
+        if hasattr(ivy.Container, f"static_{fn_name}"):
+            cont_fn = getattr(ivy.Container, f"static_{fn_name}")
         else:
             cont_fn = lambda *args, **kwargs: ivy.Container.cont_multi_map_in_function(
                 fn, *args, **kwargs
@@ -686,9 +684,7 @@ def _wrap_function(
         docstring_attr = ["__annotations__", "__doc__"]
         for attr in docstring_attr:
             setattr(to_wrap, attr, getattr(original, attr))
-        # wrap decorators
-        mixed = hasattr(original, "mixed_function")
-        if mixed:
+        if mixed := hasattr(original, "mixed_function"):
             to_replace = {
                 True: ["inputs_to_ivy_arrays"],
                 False: [
@@ -833,9 +829,6 @@ def _dtype_device_wrapper_creator(attrib, t):
                                 lambda: _dtype_from_version(version_dict, version), t
                             )
                             setattr(func, attrib, val)
-                        else:
-                            # for conflicting ones we do nothing
-                            pass
             else:
                 setattr(func, attrib, val)
                 setattr(func, "dictionary_info", version_dict)
@@ -963,19 +956,20 @@ class with_unsupported_dtypes(contextlib.ContextDecorator):
         new_globals = set(globals_getter_func().keys())
         diff = new_globals.difference(set(self.globals))
         for item in diff:
-            if globals_getter_func().get(item, None):
-                if isinstance(globals_getter_func()[item], FunctionType):
-                    # we need to add the decorator
-                    globals_getter_func(
-                        [
-                            item,
-                            (
-                                _dtype_device_wrapper_creator(
-                                    "unsupported_dtypes", tuple
-                                )(*self.args, **self.kwargs)
-                            )(globals_getter_func()[item]),
-                        ]
-                    )
+            if globals_getter_func().get(item, None) and isinstance(
+                globals_getter_func()[item], FunctionType
+            ):
+                # we need to add the decorator
+                globals_getter_func(
+                    [
+                        item,
+                        (
+                            _dtype_device_wrapper_creator(
+                                "unsupported_dtypes", tuple
+                            )(*self.args, **self.kwargs)
+                        )(globals_getter_func()[item]),
+                    ]
+                )
 
 
 class with_supported_dtypes(contextlib.ContextDecorator):
@@ -999,19 +993,20 @@ class with_supported_dtypes(contextlib.ContextDecorator):
         new_globals = set(globals_getter_func().keys())
         diff = new_globals.difference(set(self.globals))
         for item in diff:
-            if globals_getter_func().get(item, None):
-                if isinstance(globals_getter_func()[item], FunctionType):
-                    # we need to add the decorator
-                    globals_getter_func(
-                        [
-                            item,
-                            (
-                                _dtype_device_wrapper_creator(
-                                    "supported_dtypes", tuple
-                                )(*self.args, **self.kwargs)
-                            )(globals_getter_func()[item]),
-                        ]
-                    )
+            if globals_getter_func().get(item, None) and isinstance(
+                globals_getter_func()[item], FunctionType
+            ):
+                # we need to add the decorator
+                globals_getter_func(
+                    [
+                        item,
+                        (
+                            _dtype_device_wrapper_creator(
+                                "supported_dtypes", tuple
+                            )(*self.args, **self.kwargs)
+                        )(globals_getter_func()[item]),
+                    ]
+                )
 
 
 class with_unsupported_devices(contextlib.ContextDecorator):
@@ -1035,19 +1030,20 @@ class with_unsupported_devices(contextlib.ContextDecorator):
         new_globals = set(globals_getter_func().keys())
         diff = new_globals.difference(set(self.globals))
         for item in diff:
-            if globals_getter_func().get(item, None):
-                if isinstance(globals_getter_func()[item], FunctionType):
-                    # we need to add the decorator
-                    globals_getter_func(
-                        [
-                            item,
-                            (
-                                _dtype_device_wrapper_creator(
-                                    "unsupported_devices", tuple
-                                )(*self.args, **self.kwargs)
-                            )(globals_getter_func()[item]),
-                        ]
-                    )
+            if globals_getter_func().get(item, None) and isinstance(
+                globals_getter_func()[item], FunctionType
+            ):
+                # we need to add the decorator
+                globals_getter_func(
+                    [
+                        item,
+                        (
+                            _dtype_device_wrapper_creator(
+                                "unsupported_devices", tuple
+                            )(*self.args, **self.kwargs)
+                        )(globals_getter_func()[item]),
+                    ]
+                )
 
 
 class with_supported_devices(contextlib.ContextDecorator):
@@ -1071,19 +1067,20 @@ class with_supported_devices(contextlib.ContextDecorator):
         new_globals = set(globals_getter_func().keys())
         diff = new_globals.difference(set(self.globals))
         for item in diff:
-            if globals_getter_func().get(item, None):
-                if isinstance(globals_getter_func()[item], FunctionType):
-                    # we need to add the decorator
-                    globals_getter_func(
-                        [
-                            item,
-                            (
-                                _dtype_device_wrapper_creator(
-                                    "supported_devices", tuple
-                                )(*self.args, **self.kwargs)
-                            )(globals_getter_func()[item]),
-                        ]
-                    )
+            if globals_getter_func().get(item, None) and isinstance(
+                globals_getter_func()[item], FunctionType
+            ):
+                # we need to add the decorator
+                globals_getter_func(
+                    [
+                        item,
+                        (
+                            _dtype_device_wrapper_creator(
+                                "supported_devices", tuple
+                            )(*self.args, **self.kwargs)
+                        )(globals_getter_func()[item]),
+                    ]
+                )
 
 
 class with_unsupported_device_and_dtypes(contextlib.ContextDecorator):
@@ -1132,19 +1129,20 @@ class with_unsupported_device_and_dtypes(contextlib.ContextDecorator):
         new_globals = set(globals_getter_func().keys())
         diff = new_globals.difference(set(self.globals.keys()))
         for item in diff:
-            if globals_getter_func().get(item, None):
-                if isinstance(globals_getter_func()[item], FunctionType):
-                    # we need to add the decorator
-                    globals_getter_func(
-                        [
-                            item,
-                            (
-                                _dtype_device_wrapper_creator(
-                                    "unsupported_device_and_dtype", tuple
-                                )(*self.args, **self.kwargs)
-                            )(globals_getter_func()[item]),
-                        ]
-                    )
+            if globals_getter_func().get(item, None) and isinstance(
+                globals_getter_func()[item], FunctionType
+            ):
+                # we need to add the decorator
+                globals_getter_func(
+                    [
+                        item,
+                        (
+                            _dtype_device_wrapper_creator(
+                                "unsupported_device_and_dtype", tuple
+                            )(*self.args, **self.kwargs)
+                        )(globals_getter_func()[item]),
+                    ]
+                )
 
 
 class with_supported_device_and_dtypes(contextlib.ContextDecorator):
@@ -1192,19 +1190,20 @@ class with_supported_device_and_dtypes(contextlib.ContextDecorator):
         new_globals = set(globals_getter_func().keys())
         diff = new_globals.difference(set(self.globals))
         for item in diff:
-            if globals_getter_func().get(item, None):
-                if isinstance(globals_getter_func()[item], FunctionType):
-                    # we need to add the decorator
-                    globals_getter_func(
-                        [
-                            item,
-                            (
-                                _dtype_device_wrapper_creator(
-                                    "supported_device_and_dtype", tuple
-                                )(*self.args, **self.kwargs)
-                            )(globals_getter_func()[item]),
-                        ]
-                    )
+            if globals_getter_func().get(item, None) and isinstance(
+                globals_getter_func()[item], FunctionType
+            ):
+                # we need to add the decorator
+                globals_getter_func(
+                    [
+                        item,
+                        (
+                            _dtype_device_wrapper_creator(
+                                "supported_device_and_dtype", tuple
+                            )(*self.args, **self.kwargs)
+                        )(globals_getter_func()[item]),
+                    ]
+                )
 
 
 class override(contextlib.ContextDecorator):
@@ -1220,7 +1219,8 @@ class override(contextlib.ContextDecorator):
         new_globals = set(globals().keys())
         diff = new_globals.difference(set(self.globals))
         for item in diff:
-            if globals_getter_func().get(item, None):
-                if isinstance(globals_getter_func()[item], FunctionType):
-                    # we need to add the decorator
-                    globals_getter_func([item, "override"])
+            if globals_getter_func().get(item, None) and isinstance(
+                globals_getter_func()[item], FunctionType
+            ):
+                # we need to add the decorator
+                globals_getter_func([item, "override"])

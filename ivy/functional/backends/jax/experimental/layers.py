@@ -16,9 +16,7 @@ from ivy.functional.ivy.experimental.layers import _padding_ceil_mode, _get_size
 def _from_int_to_tuple(arg, dim):
     if isinstance(arg, int):
         return (arg,) * dim
-    if isinstance(arg, tuple) and len(arg) == 1:
-        return (arg[0],) * dim
-    return arg
+    return (arg[0],) * dim if isinstance(arg, tuple) and len(arg) == 1 else arg
 
 
 def general_pool(
@@ -65,10 +63,8 @@ def general_pool(
 
     # shape of window after dilation
     new_window_shape = tuple(
-        [
-            window_shape[i - 1] + (dilation[i] - 1) * (window_shape[i - 1] - 1)
-            for i in range(1, len(dims) - 1)
-        ]
+        window_shape[i - 1] + (dilation[i] - 1) * (window_shape[i - 1] - 1)
+        for i in range(1, len(dims) - 1)
     )
     # manual padding
     if isinstance(padding, str):
@@ -151,10 +147,7 @@ def max_pool2d(
         x, -jnp.inf, jlax.max, kernel, strides, padding, 2, dilation, ceil_mode
     )
 
-    if data_format == "NCHW":
-        return jnp.transpose(res, (0, 3, 1, 2))
-
-    return res
+    return jnp.transpose(res, (0, 3, 1, 2)) if data_format == "NCHW" else res
 
 
 def max_pool3d(
@@ -246,9 +239,7 @@ def avg_pool2d(
     res = res / general_pool(
         jnp.ones(div_shape, dtype=res.dtype), 0.0, jlax.add, kernel, strides, padding, 2
     )
-    if data_format == "NCHW":
-        return jnp.transpose(res, (0, 3, 1, 2))
-    return res
+    return jnp.transpose(res, (0, 3, 1, 2)) if data_format == "NCHW" else res
 
 
 def avg_pool3d(
@@ -321,13 +312,9 @@ def dct(
         axis_idx = [slice(None)] * len(x.shape)
         axis_idx[axis] = slice(-2, 0, -1)
         x = jnp.concatenate([x, x[tuple(axis_idx)]], axis=axis)
-        dct_out = jnp.real(jnp.fft.rfft(x, axis=axis))
-        return dct_out
-
+        return jnp.real(jnp.fft.rfft(x, axis=axis))
     elif type == 2:
-        dct_out = jax.scipy.fft.dct(x, type=2, n=n, axis=axis, norm=norm)
-        return dct_out
-
+        return jax.scipy.fft.dct(x, type=2, n=n, axis=axis, norm=norm)
     elif type == 3:
         scale_dims = [1] * len(x.shape)
         scale_dims[axis] = axis_dim
@@ -346,11 +333,11 @@ def dct(
 
         axis_idx = [slice(None)] * len(x.shape)
         axis_idx[axis] = slice(None, axis_dim)
-        dct_out = jnp.real(
-            jnp.fft.irfft(scale * jlax.complex(x, real_zero), n=2 * axis_dim, axis=axis)
+        return jnp.real(
+            jnp.fft.irfft(
+                scale * jlax.complex(x, real_zero), n=2 * axis_dim, axis=axis
+            )
         )[tuple(axis_idx)]
-        return dct_out
-
     elif type == 4:
         dct_2 = jax.scipy.fft.dct(x, type=2, n=2 * axis_dim, axis=axis, norm=None)
         axis_idx = [slice(None)] * len(x.shape)
@@ -389,7 +376,7 @@ def fft(
         raise ivy.utils.exceptions.IvyError(
             f"Invalid data points {n}, expecting more than 1"
         )
-    if norm != "backward" and norm != "ortho" and norm != "forward":
+    if norm not in ["backward", "ortho", "forward"]:
         raise ivy.utils.exceptions.IvyError(f"Unrecognized normalization mode {norm}")
     return jnp.fft.fft(x, n, dim, norm)
 
@@ -403,20 +390,19 @@ def dropout1d(
     data_format: str = "NWC",
     out: Optional[JaxArray] = None,
 ) -> JaxArray:
-    if training:
-        if data_format == "NWC":
-            perm = (0, 2, 1) if len(x.shape) == 3 else (1, 0)
-            x = jnp.transpose(x, perm)
-        noise_shape = list(x.shape)
-        noise_shape[-1] = 1
-        _, rng_input = jax.random.split(RNG.key)
-        mask = jax.random.bernoulli(rng_input, 1 - prob, noise_shape)
-        res = jnp.where(mask, x / (1 - prob), 0)
-        if data_format == "NWC":
-            res = jnp.transpose(res, perm)
-        return res
-    else:
+    if not training:
         return x
+    if data_format == "NWC":
+        perm = (0, 2, 1) if len(x.shape) == 3 else (1, 0)
+        x = jnp.transpose(x, perm)
+    noise_shape = list(x.shape)
+    noise_shape[-1] = 1
+    _, rng_input = jax.random.split(RNG.key)
+    mask = jax.random.bernoulli(rng_input, 1 - prob, noise_shape)
+    res = jnp.where(mask, x / (1 - prob), 0)
+    if data_format == "NWC":
+        res = jnp.transpose(res, perm)
+    return res
 
 
 def dropout3d(
@@ -428,23 +414,22 @@ def dropout3d(
     data_format: str = "NDHWC",
     out: Optional[JaxArray] = None,
 ) -> JaxArray:
-    if training:
-        is_batched = len(x.shape) == 5
-        if data_format == "NCDHW":
-            perm = (0, 2, 3, 4, 1) if is_batched else (1, 2, 3, 0)
-            x = jnp.transpose(x, perm)
-        noise_shape = list(x.shape)
-        sl = slice(1, -1) if is_batched else slice(-1)
-        noise_shape[sl] = [1] * 3
-        _, rng_input = jax.random.split(RNG.key)
-        mask = jax.random.bernoulli(rng_input, 1 - prob, noise_shape)
-        res = jnp.where(mask, x / (1 - prob), 0)
-        if data_format == "NCDHW":
-            perm = (0, 4, 1, 2, 3) if is_batched else (3, 0, 1, 2)
-            res = jnp.transpose(res, perm)
-        return res
-    else:
+    if not training:
         return x
+    is_batched = len(x.shape) == 5
+    if data_format == "NCDHW":
+        perm = (0, 2, 3, 4, 1) if is_batched else (1, 2, 3, 0)
+        x = jnp.transpose(x, perm)
+    noise_shape = list(x.shape)
+    sl = slice(1, -1) if is_batched else slice(-1)
+    noise_shape[sl] = [1] * 3
+    _, rng_input = jax.random.split(RNG.key)
+    mask = jax.random.bernoulli(rng_input, 1 - prob, noise_shape)
+    res = jnp.where(mask, x / (1 - prob), 0)
+    if data_format == "NCDHW":
+        perm = (0, 4, 1, 2, 3) if is_batched else (3, 0, 1, 2)
+        res = jnp.transpose(res, perm)
+    return res
 
 
 def ifft(
@@ -474,7 +459,7 @@ def ifft(
         raise ivy.utils.exceptions.IvyError(
             f"Invalid data points {n}, expecting more than 1"
         )
-    if norm != "backward" and norm != "ortho" and norm != "forward":
+    if norm not in ["backward", "ortho", "forward"]:
         raise ivy.utils.exceptions.IvyError(f"Unrecognized normalization mode {norm}")
     return jnp.fft.ifft(x, n, dim, norm)
 

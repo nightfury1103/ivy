@@ -25,8 +25,8 @@ def concat(
     axis: Optional[int] = 0,
     out: Optional[np.ndarray] = None,
 ) -> np.ndarray:
-    is_tuple = type(xs) is tuple
     if axis is None:
+        is_tuple = type(xs) is tuple
         if is_tuple:
             xs = list(xs)
         for i in range(len(xs)):
@@ -124,7 +124,7 @@ def squeeze(
         if axis is None or axis == 0 or axis == -1:
             return x
         raise ivy.utils.exceptions.IvyException(
-            "tried to squeeze a zero-dimensional input by axis {}".format(axis)
+            f"tried to squeeze a zero-dimensional input by axis {axis}"
         )
     return np.squeeze(x, axis=axis)
 
@@ -157,9 +157,7 @@ def split(
     if x.shape == ():
         if num_or_size_splits is not None and num_or_size_splits != 1:
             raise ivy.utils.exceptions.IvyException(
-                "input array had no shape, but num_sections specified was {}".format(
-                    num_or_size_splits
-                )
+                f"input array had no shape, but num_sections specified was {num_or_size_splits}"
             )
         return [x]
     if num_or_size_splits is None:
@@ -224,9 +222,7 @@ def unstack(
     if x.shape == ():
         return [x]
     x_split = np.split(x, x.shape[axis], axis)
-    if keepdims:
-        return x_split
-    return [np.squeeze(item, axis) for item in x_split]
+    return x_split if keepdims else [np.squeeze(item, axis) for item in x_split]
 
 
 def clip(

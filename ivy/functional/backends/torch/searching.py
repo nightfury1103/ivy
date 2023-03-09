@@ -26,7 +26,7 @@ def argmax(
 ) -> torch.Tensor:
     if select_last_index:
         if axis is None:
-            x = torch.flip(x, dims=[axes for axes in range(x.ndim)])
+            x = torch.flip(x, dims=list(range(x.ndim)))
             ret = torch.argmax(x, dim=axis, keepdim=keepdims)
             ret = x.numel() - ret - 1
         else:
@@ -54,7 +54,7 @@ def argmin(
 ) -> torch.Tensor:
     if select_last_index:
         if axis is None:
-            x = torch.flip(x, dims=[axes for axes in range(x.ndim)])
+            x = torch.flip(x, dims=list(range(x.ndim)))
             ret = torch.argmin(x, dim=axis, keepdim=keepdims)
             ret = x.numel() - ret - 1
         else:
@@ -90,9 +90,7 @@ def nonzero(
             res = res[:, :size]
 
     res = tuple(res)
-    if as_tuple:
-        return res
-    return torch.stack(res, dim=1)
+    return res if as_tuple else torch.stack(res, dim=1)
 
 
 def where(

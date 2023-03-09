@@ -60,8 +60,7 @@ def fmax(
     x1, x2 = promote_types_of_inputs(x1, x2)
     x1 = tf.where(tf.math.is_nan(x1, temp), x2, x1)
     x2 = tf.where(tf.math.is_nan(x2, temp), x1, x2)
-    ret = tf.experimental.numpy.maximum(x1, x2)
-    return ret
+    return tf.experimental.numpy.maximum(x1, x2)
 
 
 def fmin(
@@ -75,8 +74,7 @@ def fmin(
     x1, x2 = promote_types_of_inputs(x1, x2)
     x1 = tf.where(tf.math.is_nan(x1, temp), x2, x1)
     x2 = tf.where(tf.math.is_nan(x2, temp), x1, x2)
-    ret = tf.experimental.numpy.minimum(x1, x2)
-    return ret
+    return tf.experimental.numpy.minimum(x1, x2)
 
 
 def trapz(
@@ -212,9 +210,8 @@ def nan_to_num(
     ret = tf.where(tf.math.logical_and(tf.math.is_inf(ret), ret < 0), neginf, ret)
     if copy:
         return ret
-    else:
-        x = ret
-        return x
+    x = ret
+    return x
 
 
 @with_unsupported_dtypes(
@@ -402,7 +399,7 @@ def _normalize_axis_tuple(axis: Union[int, list, tuple], ndim: int) -> Tuple[int
             axis = [operator.index(axis)]
         except TypeError:
             pass
-    axis = tuple([_normalize_axis_index(ax, ndim) for ax in axis])
+    axis = tuple(_normalize_axis_index(ax, ndim) for ax in axis)
     if len(set(axis)) != len(axis):
         raise ValueError("repeated axis")
     return axis
@@ -422,11 +419,7 @@ def gradient(
     device = x.device
     x = tf.experimental.numpy.asanyarray(x)
     N = x.ndim  # number of dimensions
-    if axis is None:
-        axes = tuple(range(N))
-    else:
-        axes = _normalize_axis_tuple(axis, N)
-
+    axes = tuple(range(N)) if axis is None else _normalize_axis_tuple(axis, N)
     len_axes = len(axes)
     n = (
         -1
@@ -452,10 +445,7 @@ def gradient(
                 raise ValueError("distances must be either scalars or 1d")
             if len(distances) != x.shape[axes[i]]:
                 raise ValueError(
-                    "when 1d, distances must match "
-                    "the length of the corresponding dimension {} {}".format(
-                        len(distances), x.shape[axes[i]]
-                    )
+                    f"when 1d, distances must match the length of the corresponding dimension {len(distances)} {x.shape[axes[i]]}"
                 )
             if distances.dtype.is_integer:
                 # Convert numpy integer types to float64 to avoid modular
@@ -512,7 +502,7 @@ def gradient(
         if uniform_spacing:
             out[tuple(slice1)] = (x[tuple(slice4)] - x[tuple(slice2)]) / (2.0 * ax_dx)
         else:
-            dx1 = ax_dx[0:-1]
+            dx1 = ax_dx[:-1]
             dx2 = ax_dx[1:]
             a = -(dx2) / (dx1 * (dx1 + dx2))
             b = (dx2 - dx1) / (dx1 * dx2)
@@ -587,10 +577,7 @@ def gradient(
         slice3[axis] = slice(None)
         slice4[axis] = slice(None)
 
-    if len_axes == 1:
-        return outvals[0]
-    else:
-        return outvals
+    return outvals[0] if len_axes == 1 else outvals
 
 
 @with_unsupported_dtypes({"2.9.1 and below": ("bfloat16,")}, backend_version)

@@ -62,9 +62,7 @@ def max_pool1d(
 
     res = sub_matrices.max(axis=(2))
 
-    if data_format == "NCW":
-        return res.swapaxes(1, 2)
-    return res
+    return res.swapaxes(1, 2) if data_format == "NCW" else res
 
 
 def max_pool2d(
@@ -161,9 +159,7 @@ def max_pool2d(
 
     # B x OH x OW x O
     res = sub_matrices.max(axis=(3, 4))
-    if data_format == "NCHW":
-        return np.transpose(res, (0, 3, 1, 2))
-    return res
+    return np.transpose(res, (0, 3, 1, 2)) if data_format == "NCHW" else res
 
 
 def max_pool3d(
@@ -229,9 +225,7 @@ def max_pool3d(
 
     # B x OH x OW x O
     res = sub_matrices.max(axis=(4, 5, 6))
-    if data_format == "NCDHW":
-        return np.transpose(res, (0, 4, 1, 2, 3))
-    return res
+    return np.transpose(res, (0, 4, 1, 2, 3)) if data_format == "NCDHW" else res
 
 
 def avg_pool1d(
@@ -285,9 +279,7 @@ def avg_pool1d(
 
     res = np.mean(sub_matrices, axis=2)
 
-    if data_format == "NCW":
-        return res.swapaxes(1, 2)
-    return res
+    return res.swapaxes(1, 2) if data_format == "NCW" else res
 
 
 def avg_pool2d(
@@ -346,9 +338,7 @@ def avg_pool2d(
 
     # B x OH x OW x O
     res = np.mean(sub_matrices, axis=(3, 4))
-    if data_format == "NCHW":
-        return np.transpose(res, (0, 3, 1, 2))
-    return res
+    return np.transpose(res, (0, 3, 1, 2)) if data_format == "NCHW" else res
 
 
 def avg_pool3d(
@@ -414,9 +404,7 @@ def avg_pool3d(
 
     # B x OH x OW x O
     res = np.mean(sub_matrices, axis=(4, 5, 6))
-    if data_format == "NCDHW":
-        return np.transpose(res, (0, 4, 1, 2, 3))
-    return res
+    return np.transpose(res, (0, 4, 1, 2, 3)) if data_format == "NCDHW" else res
 
 
 def fft(
@@ -447,7 +435,7 @@ def fft(
         raise ivy.utils.exceptions.IvyError(
             f"Invalid data points {n}, expecting more than 1"
         )
-    if norm != "backward" and norm != "ortho" and norm != "forward":
+    if norm not in ["backward", "ortho", "forward"]:
         raise ivy.utils.exceptions.IvyError(f"Unrecognized normalization mode {norm}")
     return np.fft.fft(x, n, dim, norm)
 
@@ -479,7 +467,7 @@ def dct(
     real_zero = np.array(0.0, dtype=x.dtype)
     axis_dim = x.shape[axis]
     axis_dim_float = np.array(axis_dim, dtype=x.dtype)
-    cast_final = True if x.dtype != np.float64 else False
+    cast_final = x.dtype != np.float64
 
     if type == 1:
         if norm:
@@ -556,19 +544,18 @@ def dropout1d(
     data_format: str = "NWC",
     out: Optional[np.ndarray] = None,
 ) -> np.ndarray:
-    if training:
-        if data_format == "NCW":
-            perm = (0, 2, 1) if len(x.shape) == 3 else (1, 0)
-            x = np.transpose(x, perm)
-        noise_shape = list(x.shape)
-        noise_shape[-2] = 1
-        mask = np.random.binomial(1, 1 - prob, noise_shape)
-        res = np.where(mask, x / (1 - prob), 0)
-        if data_format == "NCW":
-            res = np.transpose(res, perm)
-        return res
-    else:
+    if not training:
         return x
+    if data_format == "NCW":
+        perm = (0, 2, 1) if len(x.shape) == 3 else (1, 0)
+        x = np.transpose(x, perm)
+    noise_shape = list(x.shape)
+    noise_shape[-2] = 1
+    mask = np.random.binomial(1, 1 - prob, noise_shape)
+    res = np.where(mask, x / (1 - prob), 0)
+    if data_format == "NCW":
+        res = np.transpose(res, perm)
+    return res
 
 
 def dropout3d(
@@ -580,22 +567,21 @@ def dropout3d(
     data_format: str = "NDHWC",
     out: Optional[np.ndarray] = None,
 ) -> np.ndarray:
-    if training:
-        is_batched = len(x.shape) == 5
-        if data_format == "NCDHW":
-            perm = (0, 2, 3, 4, 1) if is_batched else (1, 2, 3, 0)
-            x = np.transpose(x, perm)
-        noise_shape = list(x.shape)
-        sl = slice(1, -1) if is_batched else slice(-1)
-        noise_shape[sl] = [1] * 3
-        mask = np.random.binomial(1, 1 - prob, noise_shape)
-        res = np.where(mask, x / (1 - prob), 0)
-        if data_format == "NCDHW":
-            perm = (0, 4, 1, 2, 3) if is_batched else (3, 0, 1, 2)
-            res = np.transpose(res, perm)
-        return res
-    else:
+    if not training:
         return x
+    is_batched = len(x.shape) == 5
+    if data_format == "NCDHW":
+        perm = (0, 2, 3, 4, 1) if is_batched else (1, 2, 3, 0)
+        x = np.transpose(x, perm)
+    noise_shape = list(x.shape)
+    sl = slice(1, -1) if is_batched else slice(-1)
+    noise_shape[sl] = [1] * 3
+    mask = np.random.binomial(1, 1 - prob, noise_shape)
+    res = np.where(mask, x / (1 - prob), 0)
+    if data_format == "NCDHW":
+        perm = (0, 4, 1, 2, 3) if is_batched else (3, 0, 1, 2)
+        res = np.transpose(res, perm)
+    return res
 
 
 def ifft(
@@ -625,6 +611,6 @@ def ifft(
         raise ivy.utils.exceptions.IvyError(
             f"Invalid data points {n}, expecting more than 1"
         )
-    if norm != "backward" and norm != "ortho" and norm != "forward":
+    if norm not in ["backward", "ortho", "forward"]:
         raise ivy.utils.exceptions.IvyError(f"Unrecognized normalization mode {norm}")
     return np.asarray(np.fft.ifft(x, n, dim, norm), dtype=x.dtype)

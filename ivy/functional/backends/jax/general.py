@@ -56,17 +56,11 @@ def array_equal(x0: JaxArray, x1: JaxArray, /) -> bool:
 
 
 def to_numpy(x: JaxArray, /, *, copy: bool = True) -> np.ndarray:
-    if copy:
-        return np.array(_to_array(x))
-    else:
-        return np.asarray(_to_array(x))
+    return np.array(_to_array(x)) if copy else np.asarray(_to_array(x))
 
 
 def to_scalar(x: JaxArray, /) -> Number:
-    if isinstance(x, Number):
-        return x
-    else:
-        return _to_array(x).item()
+    return x if isinstance(x, Number) else _to_array(x).item()
 
 
 def to_list(x: JaxArray, /) -> list:
@@ -91,7 +85,7 @@ def gather(
     else:
         for b in range(batch_dims):
             if b == 0:
-                zip_list = [(p, i) for p, i in zip(params, indices)]
+                zip_list = list(zip(params, indices))
             else:
                 zip_list = [
                     (p, i) for z in [zip(p1, i1) for p1, i1 in zip_list] for p, i in z
@@ -101,17 +95,14 @@ def gather(
             r = jnp.take(p, i, axis - batch_dims)
             result.append(r)
         result = jnp.array(result)
-        result = result.reshape([*params.shape[0:batch_dims], *result.shape[1:]])
+        result = result.reshape([*params.shape[:batch_dims], *result.shape[1:]])
     return _to_device(result)
 
 
 def gather_nd_helper(params, indices):
     indices_shape = indices.shape
     params_shape = params.shape
-    if len(indices.shape) == 0:
-        num_index_dims = 1
-    else:
-        num_index_dims = indices_shape[-1]
+    num_index_dims = 1 if len(indices.shape) == 0 else indices_shape[-1]
     res_dim_sizes_list = [
         reduce(mul, params_shape[i + 1 :], 1) for i in range(len(params_shape) - 1)
     ] + [1]
@@ -119,7 +110,7 @@ def gather_nd_helper(params, indices):
     implicit_indices_factor = int(result_dim_sizes[num_index_dims - 1].item())
     flat_params = jnp.reshape(params, (-1,))
     new_shape = [1] * (len(indices_shape) - 1) + [num_index_dims]
-    indices_scales = jnp.reshape(result_dim_sizes[0:num_index_dims], new_shape)
+    indices_scales = jnp.reshape(result_dim_sizes[:num_index_dims], new_shape)
     indices_for_flat_tiled = jnp.tile(
         jnp.reshape(jnp.sum(indices * indices_scales, -1, keepdims=True), (-1, 1)),
         (1, implicit_indices_factor),
@@ -132,8 +123,7 @@ def gather_nd_helper(params, indices):
     flat_indices_for_flat = jnp.reshape(indices_for_flat, (-1,)).astype(jnp.int32)
     flat_gather = jnp.take(flat_params, flat_indices_for_flat, 0)
     new_shape = list(indices_shape[:-1]) + list(params_shape[num_index_dims:])
-    ret = jnp.reshape(flat_gather, new_shape)
-    return ret
+    return jnp.reshape(flat_gather, new_shape)
 
 
 def gather_nd(
@@ -152,7 +142,7 @@ def gather_nd(
     else:
         for b in range(batch_dims):
             if b == 0:
-                zip_list = [(p, i) for p, i in zip(params, indices)]
+                zip_list = list(zip(params, indices))
             else:
                 zip_list = [
                     (p, i) for z in [zip(p1, i1) for p1, i1 in zip_list] for p, i in z
@@ -162,7 +152,7 @@ def gather_nd(
             r = gather_nd_helper(p, i)
             result.append(r)
         result = jnp.array(result)
-        result = result.reshape([*params.shape[0:batch_dims], *result.shape[1:]])
+        result = result.reshape([*params.shape[:batch_dims], *result.shape[1:]])
     return _to_device(result)
 
 
@@ -203,44 +193,42 @@ def inplace_update(
     *,
     ensure_in_backend: bool = False,
 ) -> ivy.Array:
-    if ivy.is_array(x) and ivy.is_array(val):
-        if ensure_in_backend:
-            raise ivy.utils.exceptions.IvyException(
-                "JAX does not natively support inplace updates"
-            )
-        (x_native, val_native), _ = ivy.args_to_native(x, val)
-        if ivy.is_ivy_array(x):
-            x.data = val_native
-            if ivy.exists(x._base):
-                base = x._base
-                base_idx = ivy.arange(base.size).reshape(base.shape)
-                for fn, args, kwargs, index in x._manipulation_stack:
-                    base_idx = fn(base_idx, *args, **kwargs)
-                    base_idx = base[index] if ivy.exists(index) else base_idx
-                base_flat = base.data.flatten()
-                base_flat = base_flat.at[base_idx.data.flatten()].set(
-                    val_native.flatten()
-                )
-
-                base.data = base_flat.reshape(base.shape)
-
-                for ref in base._view_refs:
-                    view = ref()
-                    if ivy.exists(view) and view is not x:
-                        _update_view(view, base)
-
-            else:
-                for ref in x._view_refs:
-                    view = ref()
-                    if ivy.exists(view):
-                        _update_view(view, x)
-        else:
-            raise ivy.utils.exceptions.IvyException(
-                "JAX does not natively support inplace updates"
-            )
-        return x
-    else:
+    if not ivy.is_array(x) or not ivy.is_array(val):
         return val
+    if ensure_in_backend:
+        raise ivy.utils.exceptions.IvyException(
+            "JAX does not natively support inplace updates"
+        )
+    (x_native, val_native), _ = ivy.args_to_native(x, val)
+    if not ivy.is_ivy_array(x):
+        raise ivy.utils.exceptions.IvyException(
+            "JAX does not natively support inplace updates"
+        )
+    x.data = val_native
+    if ivy.exists(x._base):
+        base = x._base
+        base_idx = ivy.arange(base.size).reshape(base.shape)
+        for fn, args, kwargs, index in x._manipulation_stack:
+            base_idx = fn(base_idx, *args, **kwargs)
+            base_idx = base[index] if ivy.exists(index) else base_idx
+        base_flat = base.data.flatten()
+        base_flat = base_flat.at[base_idx.data.flatten()].set(
+            val_native.flatten()
+        )
+
+        base.data = base_flat.reshape(base.shape)
+
+        for ref in base._view_refs:
+            view = ref()
+            if ivy.exists(view) and view is not x:
+                _update_view(view, base)
+
+    else:
+        for ref in x._view_refs:
+            view = ref()
+            if ivy.exists(view):
+                _update_view(view, x)
+    return x
 
 
 def _update_view(view, base):
@@ -297,9 +285,7 @@ def scatter_flat(
             target = jnp.where(target == -1e12, 0.0, target)
     else:
         raise ivy.utils.exceptions.IvyException(
-            'reduction is {}, but it must be one of "sum", "min" or "max"'.format(
-                reduction
-            )
+            f'reduction is {reduction}, but it must be one of "sum", "min" or "max"'
         )
     return _to_device(target)
 
@@ -389,9 +375,7 @@ def scatter_nd(
             )
     else:
         raise ivy.utils.exceptions.IvyException(
-            'reduction is {}, but it must be one of "sum", "min" or "max"'.format(
-                reduction
-            )
+            f'reduction is {reduction}, but it must be one of "sum", "min" or "max"'
         )
     if ivy.exists(out):
         return ivy.inplace_update(out, _to_device(target))

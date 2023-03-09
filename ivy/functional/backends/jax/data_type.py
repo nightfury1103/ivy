@@ -187,9 +187,7 @@ def as_native_dtype(dtype_in: Union[jnp.dtype, str, bool, int, float], /) -> jnp
 
 
 def dtype(x: JaxArray, *, as_native: bool = False) -> ivy.Dtype:
-    if as_native:
-        return ivy.to_native(x).dtype
-    return as_ivy_dtype(x.dtype)
+    return ivy.to_native(x).dtype if as_native else as_ivy_dtype(x.dtype)
 
 
 def dtype_bits(dtype_in: Union[jnp.dtype, str], /) -> int:

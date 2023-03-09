@@ -265,20 +265,19 @@ def take_along_axis(
 ) -> np.ndarray:
     if arr.ndim != indices.ndim:
         raise ivy.utils.exceptions.IvyException(
-            "arr and indices must have the same number of dimensions;"
-            + f" got {arr.ndim} vs {indices.ndim}"
+            f"arr and indices must have the same number of dimensions; got {arr.ndim} vs {indices.ndim}"
         )
     if mode not in ["clip", "fill", "drop"]:
         raise ValueError(
             f"Invalid mode '{mode}'. Valid modes are 'clip', 'fill', 'drop'."
         )
-    arr_shape = arr.shape
     if axis < 0:
         axis += arr.ndim
+    arr_shape = arr.shape
     if mode == "clip":
         max_index = arr.shape[axis] - 1
         indices = np.clip(indices, 0, max_index)
-    elif mode == "fill" or mode == "drop":
+    elif mode in {"fill", "drop"}:
         if "float" in str(arr.dtype):
             fill_value = np.NAN
         elif "uint" in str(arr.dtype):

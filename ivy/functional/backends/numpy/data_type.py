@@ -189,9 +189,7 @@ def as_native_dtype(dtype_in: Union[np.dtype, str, bool, int, float], /) -> np.d
 
 
 def dtype(x: np.ndarray, *, as_native: bool = False) -> ivy.Dtype:
-    if as_native:
-        return ivy.to_native(x).dtype
-    return as_ivy_dtype(x.dtype)
+    return ivy.to_native(x).dtype if as_native else as_ivy_dtype(x.dtype)
 
 
 def dtype_bits(dtype_in: Union[np.dtype, str], /) -> int:

@@ -32,19 +32,20 @@ result_config = {
 
 
 def make_clickable(url, name):
-    return '<a href="{}" rel="noopener noreferrer" '.format(
-        url
-    ) + 'target="_blank"><img src={}></a>'.format(name)
+    return (
+        f'<a href="{url}" rel="noopener noreferrer" '
+        + f'target="_blank"><img src={name}></a>'
+    )
 
 
 def get_submodule(test_path):
     test_path = test_path.split("/")
     for name in submodules:
         if name in test_path:
-            if name == "test_functional":
-                coll = db_dict["test_functional/" + test_path[-2]]
-            elif name == "test_experimental":
-                coll = db_dict["test_experimental/" + test_path[-2]]
+            if name == "test_experimental":
+                coll = db_dict[f"test_experimental/{test_path[-2]}"]
+            elif name == "test_functional":
+                coll = db_dict[f"test_functional/{test_path[-2]}"]
             else:
                 coll = db_dict[name]
     submod_test = test_path[-1]
@@ -54,13 +55,13 @@ def get_submodule(test_path):
 
 
 def update_individual_test_results(collection, id, submod, backend, test, result, backend_version=None, frontend_version=None):
-    key = submod + "." + backend + "." + test
+    key = f"{submod}.{backend}.{test}"
     if backend_version is not None:
         backend_version = backend_version.replace(".", "_")
-        key += "." + backend_version
+        key += f".{backend_version}"
     if frontend_version is not None:
         frontend_version = frontend_version.replace(".", "_")
-        key += "." + frontend_version
+        key += f".{frontend_version}"
     collection.update_one(
         {"_id": id},
         {"$set": {key: result}},
@@ -70,10 +71,7 @@ def update_individual_test_results(collection, id, submod, backend, test, result
 
 
 def remove_from_db(collection, id, submod, backend, test):
-    collection.update_one(
-        {"_id": id},
-        {"$unset": {submod + "." + backend + ".": test}},
-    )
+    collection.update_one({"_id": id}, {"$unset": {f"{submod}.{backend}.": test}})
     return
 
 
@@ -126,12 +124,9 @@ if __name__ == "__main__":
         print(f"Job URL available -: {sys.argv}")
         run_id = sys.argv[7]
     else:
-        run_id = "https://github.com/unifyai/ivy/actions/runs/" + workflow_id
+        run_id = f"https://github.com/unifyai/ivy/actions/runs/{workflow_id}"
     failed = False
-    # Gpu based testing
-    with_gpu = False
-    if gpu_flag == "true":
-        with_gpu = True
+    with_gpu = gpu_flag == "true"
     # multiversion testing
     if version_flag == "true":
         run_multiversion_testing()
@@ -156,16 +151,12 @@ if __name__ == "__main__":
                 )
             if ret != 0:
                 res = make_clickable(run_id, result_config["failure"])
-                update_individual_test_results(
-                    db[coll[0]], coll[1], submod, backend, test_fn, res
-                )
                 failed = True
             else:
                 res = make_clickable(run_id, result_config["success"])
-                update_individual_test_results(
-                    db[coll[0]], coll[1], submod, backend, test_fn, res
-                )
-
+            update_individual_test_results(
+                db[coll[0]], coll[1], submod, backend, test_fn, res
+            )
     try:
         with open("tests_to_remove", "r") as f:
             for line in f:

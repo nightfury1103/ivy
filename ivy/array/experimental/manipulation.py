@@ -159,10 +159,11 @@ class _ArrayWithManipulationExperimental(abc.ABC):
         """
         if not isinstance(arrays, (list, tuple)):
             arrays = [arrays]
-        if isinstance(arrays, tuple):
-            x = (self._data) + arrays
-        else:
-            x = [self._data] + arrays
+        x = (
+            (self._data) + arrays
+            if isinstance(arrays, tuple)
+            else [self._data] + arrays
+        )
         return ivy.vstack(x, out=out)
 
     def hstack(

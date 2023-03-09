@@ -62,9 +62,7 @@ def softplus(
     else:
         x_beta = x
         res = tf.nn.softplus(x)
-    if threshold is not None:
-        return tf.where(x_beta > threshold, x, res)
-    return res
+    return tf.where(x_beta > threshold, x, res) if threshold is not None else res
 
 
 @with_unsupported_dtypes({"2.9.1 and below": ("complex",)}, backend_version)

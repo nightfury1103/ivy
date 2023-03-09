@@ -27,8 +27,8 @@ def triu_indices(
 
     ret = [[], []]
 
-    for i in range(0, min(n_rows, n_cols - k), 1):
-        for j in range(max(0, k + i), n_cols, 1):
+    for i in range(min(n_rows, n_cols - k)):
+        for j in range(max(0, k + i), n_cols):
             ret[0].append(i)
             ret[1].append(j)
 
@@ -47,14 +47,15 @@ def kaiser_window(
     dtype: Optional[tf.DType] = None,
     out: Optional[Union[tf.Tensor, tf.Variable]] = None,
 ) -> Union[tf.Tensor, tf.Variable]:
-    if periodic is False:
-        return tf.signal.kaiser_window(
+    return (
+        tf.signal.kaiser_window(
+            window_length + 1, beta, dtype=dtype, name=None
+        )[:-1]
+        if periodic
+        else tf.signal.kaiser_window(
             window_length, beta, dtype=tf.dtypes.float32, name=None
         )
-    else:
-        return tf.signal.kaiser_window(window_length + 1, beta, dtype=dtype, name=None)[
-            :-1
-        ]
+    )
 
 
 def kaiser_bessel_derived_window(
@@ -65,7 +66,7 @@ def kaiser_bessel_derived_window(
     dtype: Optional[tf.DType] = None,
     out: Optional[Union[tf.Tensor, tf.Variable]] = None,
 ) -> Union[tf.Tensor, tf.Variable]:
-    if periodic is True:
+    if periodic:
         return tf.signal.kaiser_bessel_derived_window(
             window_length + 1, beta, dtype, name=None
         )[:-1]
@@ -110,8 +111,8 @@ def tril_indices(
 
     ret = [[], []]
 
-    for i in range(-min(k, 0), n_rows, 1):
-        for j in range(0, min(n_cols, k + i + 1), 1):
+    for i in range(-min(k, 0), n_rows):
+        for j in range(min(n_cols, k + i + 1)):
             ret[0].append(i)
             ret[1].append(j)
 

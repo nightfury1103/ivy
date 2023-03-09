@@ -138,9 +138,7 @@ bitwise_and.support_native_out = True
 def ceil(x: torch.Tensor, /, *, out: Optional[torch.Tensor] = None) -> torch.Tensor:
     x = _cast_for_unary_op(x)
     if "int" in str(x.dtype):
-        if ivy.exists(out):
-            return ivy.inplace_update(out, x)
-        return x
+        return ivy.inplace_update(out, x) if ivy.exists(out) else x
     return torch.ceil(x, out=out)
 
 
@@ -151,9 +149,7 @@ ceil.support_native_out = True
 def floor(x: torch.Tensor, /, *, out: Optional[torch.Tensor] = None) -> torch.Tensor:
     x = _cast_for_unary_op(x)
     if "int" in str(x.dtype):
-        if ivy.exists(out):
-            return ivy.inplace_update(out, x)
-        return x
+        return ivy.inplace_update(out, x) if ivy.exists(out) else x
     return torch.floor(x, out=out)
 
 
@@ -427,11 +423,10 @@ def floor_divide(
     out: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
     x1, x2 = ivy.promote_types_of_inputs(x1, x2)
-    if ivy.exists(out):
-        if not ivy.is_float_dtype(out):
-            return ivy.inplace_update(
-                out, torch.floor(torch.div(x1, x2)).type(out.dtype)
-            )
+    if ivy.exists(out) and not ivy.is_float_dtype(out):
+        return ivy.inplace_update(
+            out, torch.floor(torch.div(x1, x2)).type(out.dtype)
+        )
     return torch.floor(torch.div(x1, x2), out=out).type(x1.dtype)
 
 
@@ -494,9 +489,7 @@ pow.support_native_out = True
 @with_unsupported_dtypes({"1.11.0 and below": ("float16", "complex")}, backend_version)
 def round(x: torch.Tensor, /, *, out: Optional[torch.Tensor] = None) -> torch.Tensor:
     if "int" in str(x.dtype):
-        if ivy.exists(out):
-            return ivy.inplace_update(out, x)
-        return x
+        return ivy.inplace_update(out, x) if ivy.exists(out) else x
     return torch.round(x, out=out)
 
 
@@ -509,9 +502,7 @@ def trunc(x: torch.Tensor, /, *, out: Optional[torch.Tensor] = None) -> torch.Te
     if "int" not in str(x.dtype):
         return torch.trunc(x, out=out)
     ret = x
-    if ivy.exists(out):
-        return ivy.inplace_update(out, ret)
-    return ret
+    return ivy.inplace_update(out, ret) if ivy.exists(out) else ret
 
 
 trunc.support_native_out = True
@@ -619,11 +610,10 @@ def remainder(
         res_floored = torch.where(res >= 0, torch.floor(res), torch.ceil(res))
         diff = res - res_floored
         diff, x2 = ivy.promote_types_of_inputs(diff, x2)
-        if ivy.exists(out):
-            if out.dtype != x2.dtype:
-                return ivy.inplace_update(
-                    out, torch.round(torch.mul(diff, x2)).to(out.dtype)
-                )
+        if ivy.exists(out) and out.dtype != x2.dtype:
+            return ivy.inplace_update(
+                out, torch.round(torch.mul(diff, x2)).to(out.dtype)
+            )
         return torch.round(torch.mul(diff, x2), out=out).to(x1.dtype)
     return torch.remainder(x1, x2, out=out).to(x1.dtype)
 
@@ -696,9 +686,7 @@ def minimum(
     x1, x2 = ivy.promote_types_of_inputs(x1, x2)
     if use_where:
         ret = torch.where(x1 <= x2, x1, x2)
-        if ivy.exists(out):
-            return ivy.inplace_update(out, ret)
-        return ret
+        return ivy.inplace_update(out, ret) if ivy.exists(out) else ret
     return torch.minimum(x1, x2, out=out)
 
 
@@ -717,9 +705,7 @@ def maximum(
     x1, x2 = ivy.promote_types_of_inputs(x1, x2)
     if use_where:
         ret = torch.where(x1 >= x2, x1, x2)
-        if ivy.exists(out):
-            return ivy.inplace_update(out, ret)
-        return ret
+        return ivy.inplace_update(out, ret) if ivy.exists(out) else ret
     return torch.maximum(x1, x2, out=out)
 
 

@@ -30,8 +30,7 @@ class _ScalarMeta(type):
 
 
 def _make_scalar_type(scalar_type):
-    meta = _ScalarMeta(scalar_type, (object,), {"dtype": dtype(scalar_type)})
-    return meta
+    return _ScalarMeta(scalar_type, (object,), {"dtype": dtype(scalar_type)})
 
 
 bool_ = _make_scalar_type("bool_")

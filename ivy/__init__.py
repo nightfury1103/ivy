@@ -64,12 +64,12 @@ class Array:
 class Device(str):
     def __new__(cls, dev_str):
         if dev_str != "":
-            ivy.utils.assertions.check_elem_in_list(dev_str[0:3], ["gpu", "tpu", "cpu"])
+            ivy.utils.assertions.check_elem_in_list(dev_str[:3], ["gpu", "tpu", "cpu"])
             if dev_str != "cpu":
                 # ivy.assertions.check_equal(dev_str[3], ":")
                 ivy.utils.assertions.check_true(
                     dev_str[4:].isnumeric(),
-                    message="{} must be numeric".format(dev_str[4:]),
+                    message=f"{dev_str[4:]} must be numeric",
                 )
         return str.__new__(cls, dev_str)
 
@@ -290,11 +290,11 @@ class Node(str):
     pass
 
 
-array_significant_figures_stack = list()
-array_decimal_values_stack = list()
-warning_level_stack = list()
-nan_policy_stack = list()
-dynamic_backend_stack = list()
+array_significant_figures_stack = []
+array_decimal_values_stack = []
+warning_level_stack = []
+nan_policy_stack = []
+dynamic_backend_stack = []
 warn_to_regex = {"all": "!.*", "ivy_only": "^(?!.*ivy).*$", "none": ".*"}
 
 
@@ -679,7 +679,7 @@ extra_promotion_table = {
     (complex128, complex128): complex128,
 }
 
-promotion_table = {**array_api_promotion_table, **extra_promotion_table}
+promotion_table = array_api_promotion_table | extra_promotion_table
 
 
 from .func_wrapper import *
@@ -937,11 +937,11 @@ def array_significant_figures(sig_figs=None):
         _assert_array_significant_figures_formatting(sig_figs)
         return sig_figs
     global array_significant_figures_stack
-    if not array_significant_figures_stack:
-        ret = 10
-    else:
-        ret = array_significant_figures_stack[-1]
-    return ret
+    return (
+        array_significant_figures_stack[-1]
+        if array_significant_figures_stack
+        else 10
+    )
 
 
 def set_array_significant_figures(sig_figs):
@@ -990,11 +990,7 @@ def array_decimal_values(dec_vals=None):
         _assert_array_decimal_values_formatting(dec_vals)
         return dec_vals
     global array_decimal_values_stack
-    if not array_decimal_values_stack:
-        ret = 8
-    else:
-        ret = array_decimal_values_stack[-1]
-    return ret
+    return array_decimal_values_stack[-1] if array_decimal_values_stack else 8
 
 
 def set_array_decimal_values(dec_vals):
@@ -1027,11 +1023,7 @@ def warning_level():
         current warning level, default is "ivy_only"
     """
     global warning_level_stack
-    if not warning_level_stack:
-        ret = "ivy_only"
-    else:
-        ret = warning_level_stack[-1]
-    return ret
+    return warning_level_stack[-1] if warning_level_stack else "ivy_only"
 
 
 def set_warning_level(warn_level):
@@ -1073,11 +1065,7 @@ def get_nan_policy():
 
     """
     global nan_policy_stack
-    if not nan_policy_stack:
-        ret = "nothing"
-    else:
-        ret = nan_policy_stack[-1]
-    return ret
+    return nan_policy_stack[-1] if nan_policy_stack else "nothing"
 
 
 def set_nan_policy(warn_level):
@@ -1111,10 +1099,7 @@ def unset_nan_policy():
 def get_dynamic_backend():
     """Returns the current dynamic backend setting, with the default being True"""
     global dynamic_backend_stack
-    if not dynamic_backend_stack:
-        return True
-    else:
-        return dynamic_backend_stack[-1]
+    return dynamic_backend_stack[-1] if dynamic_backend_stack else True
 
 
 def set_dynamic_backend(flag):

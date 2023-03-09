@@ -10,18 +10,15 @@ url = "https://pypi.python.org/pypi/"
 def tilde(x, y):
     if len(x) != len(y):
         return None
-    for i in range(len(x) - 1):
-        if x[i] != y[i]:
-            return None
-    return True
+    return next((None for i in range(len(x) - 1) if x[i] != y[i]), True)
 
 
 def lower_of_two(x, y):
-    return x if x < y else y
+    return min(x, y)
 
 
 def higher_of_two(x, y):
-    return x if x > y else y
+    return max(x, y)
 
 
 def make_len_equal(x, y):
@@ -58,19 +55,17 @@ def higher_or_lower(x, y, operator, operator1):
 
     if string_dict[operator1](y, x):
         if operator1 in lower:
-            if acceptable_version:
-                acceptable_version = higher_of_two(
-                    acceptable_version, lower_of_two(y, x)
-                )
-            else:
-                acceptable_version = lower_of_two(y, x)
+            acceptable_version = (
+                higher_of_two(acceptable_version, lower_of_two(y, x))
+                if acceptable_version
+                else lower_of_two(y, x)
+            )
+        elif acceptable_version:
+            acceptable_version = higher_of_two(
+                acceptable_version, higher_of_two(y, x)
+            )
         else:
-            if acceptable_version:
-                acceptable_version = higher_of_two(
-                    acceptable_version, higher_of_two(y, x)
-                )
-            else:
-                acceptable_version = higher_of_two(y, x)
+            acceptable_version = higher_of_two(y, x)
     return acceptable_version
 
 
@@ -106,8 +101,8 @@ def get_version_from_string(s):
 
 def get_package_versions(lis: List):
     if not lis:
-        return dict()
-    dic = dict()
+        return {}
+    dic = {}
     for i in lis:
         if ";" in i:
             i = i[: i.index(";")]
@@ -141,12 +136,8 @@ def package_conflicts(pkg1, pkg2=None):
     data_2 = get_package_requirements(pkg2)
     if not data_1 or not data_2:
         return None
-    data_1_dic = (
-        [] if not data_1["info"]["requires_dist"] else data_1["info"]["requires_dist"]
-    )
-    data_2_dic = (
-        [] if not data_2["info"]["requires_dist"] else data_2["info"]["requires_dist"]
-    )
+    data_1_dic = data_1["info"]["requires_dist"] or []
+    data_2_dic = data_2["info"]["requires_dist"] or []
     data_1_dic = get_package_versions(
         ["python " + str(data_1["info"]["requires_python"])] + data_1_dic
     )
@@ -161,9 +152,7 @@ def get_package_requirements(pkg):
 
 
 def tuple_to_version(tup):
-    s = ""
-    for i in tup:
-        s += str(i) + "."
+    s = "".join(f"{str(i)}." for i in tup)
     return s[:-1]
 
 

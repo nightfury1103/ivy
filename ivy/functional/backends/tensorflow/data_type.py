@@ -86,9 +86,7 @@ class Bfloat16Finfo:
         self.tiny = 1.17549e-38
 
     def __repr__(self):
-        return "finfo(resolution={}, min={}, max={}, dtype={})".format(
-            self.resolution, self.min, self.max, "bfloat16"
-        )
+        return f"finfo(resolution={self.resolution}, min={self.min}, max={self.max}, dtype=bfloat16)"
 
 
 # Array API Standard #
@@ -112,20 +110,15 @@ def astype(
 def broadcast_arrays(
     *arrays: Union[tf.Tensor, tf.Variable],
 ) -> List[Union[tf.Tensor, tf.Variable]]:
-    if len(arrays) > 1:
-        desired_shape = tf.broadcast_dynamic_shape(arrays[0].shape, arrays[1].shape)
-        if len(arrays) > 2:
-            for i in range(2, len(arrays)):
-                desired_shape = tf.broadcast_dynamic_shape(
-                    desired_shape, arrays[i].shape
-                )
-    else:
+    if len(arrays) <= 1:
         return [arrays[0]]
-    result = []
-    for tensor in arrays:
-        result.append(tf.broadcast_to(tensor, desired_shape))
-
-    return result
+    desired_shape = tf.broadcast_dynamic_shape(arrays[0].shape, arrays[1].shape)
+    if len(arrays) > 2:
+        for i in range(2, len(arrays)):
+            desired_shape = tf.broadcast_dynamic_shape(
+                desired_shape, arrays[i].shape
+            )
+    return [tf.broadcast_to(tensor, desired_shape) for tensor in arrays]
 
 
 def broadcast_to(
@@ -216,9 +209,7 @@ def as_native_dtype(dtype_in: Union[tf.DType, str, bool, int, float], /) -> tf.D
 
 
 def dtype(x: Union[tf.Tensor, tf.Variable], *, as_native: bool = False) -> ivy.Dtype:
-    if as_native:
-        return ivy.to_native(x).dtype
-    return as_ivy_dtype(x.dtype)
+    return ivy.to_native(x).dtype if as_native else as_ivy_dtype(x.dtype)
 
 
 def dtype_bits(dtype_in: Union[tf.DType, str], /) -> int:

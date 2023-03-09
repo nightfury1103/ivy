@@ -26,10 +26,7 @@ def min(
     out: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
     if axis == ():
-        if ivy.exists(out):
-            return ivy.inplace_update(out, x)
-        else:
-            return x
+        return ivy.inplace_update(out, x) if ivy.exists(out) else x
     if not keepdims and not axis and axis != 0:
         return torch.amin(input=x, out=out)
     return torch.amin(input=x, dim=axis, keepdim=keepdims, out=out)
@@ -48,10 +45,7 @@ def max(
     out: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
     if axis == ():
-        if ivy.exists(out):
-            return ivy.inplace_update(out, x)
-        else:
-            return x
+        return ivy.inplace_update(out, x) if ivy.exists(out) else x
     if not keepdims and not axis and axis != 0:
         return torch.amax(input=x, out=out)
     return torch.amax(input=x, dim=axis, keepdim=keepdims, out=out)
@@ -71,11 +65,8 @@ def mean(
     if axis is None:
         num_dims = len(x.shape)
         axis = list(range(num_dims))
-    if axis == () or axis == []:
-        if ivy.exists(out):
-            return ivy.inplace_update(out, x)
-        else:
-            return x
+    if axis in [(), []]:
+        return ivy.inplace_update(out, x) if ivy.exists(out) else x
     return torch.mean(x, dim=axis, keepdim=keepdims, out=out)
 
 
@@ -84,9 +75,10 @@ mean.support_native_out = True
 
 def _infer_dtype(dtype: torch.dtype) -> torch.dtype:
     default_dtype = ivy.infer_default_dtype(dtype)
-    if default_dtype in ivy.valid_dtypes:
-        if ivy.dtype_bits(dtype) < ivy.dtype_bits(default_dtype):
-            return ivy.as_native_dtype(default_dtype)
+    if default_dtype in ivy.valid_dtypes and ivy.dtype_bits(
+        dtype
+    ) < ivy.dtype_bits(default_dtype):
+        return ivy.as_native_dtype(default_dtype)
     return ivy.as_native_dtype(dtype)
 
 
@@ -111,7 +103,7 @@ def prod(
         return x.type(dtype)
     if axis is None:
         return torch.prod(input=x, dtype=dtype)
-    if isinstance(axis, tuple) or isinstance(axis, list):
+    if isinstance(axis, (tuple, list)):
         for i in axis:
             x = torch.prod(x, i, keepdim=keepdims, dtype=dtype)
         return x
@@ -198,15 +190,14 @@ def var(
     size = 1
     for a in axis:
         size *= x.shape[a]
-    if size - correction <= 0:
-        ret = torch.var(x, dim=axis, unbiased=False, keepdim=keepdims)
-        ret = ivy.full(ret.shape, float("nan"), dtype=ret.dtype)
-        return ret
-    else:
+    if size - correction > 0:
         return torch.mul(
             torch.var(x, dim=axis, unbiased=False, keepdim=keepdims),
             (size / (size - correction)),
         ).to(x.dtype)
+    ret = torch.var(x, dim=axis, unbiased=False, keepdim=keepdims)
+    ret = ivy.full(ret.shape, float("nan"), dtype=ret.dtype)
+    return ret
 
 
 # Extra #
@@ -232,7 +223,7 @@ def cumprod(
     if dtype is None:
         dtype = _infer_dtype(x.dtype)
 
-    if not (exclusive or reverse):
+    if not exclusive and not reverse:
         return torch.cumprod(x, axis, dtype=dtype, out=out)
     elif exclusive and reverse:
         x = torch.cumprod(torch.flip(x, dims=(axis,)), axis, dtype=dtype)
@@ -248,9 +239,7 @@ def cumprod(
     else:
         x = torch.cumprod(torch.flip(x, dims=(axis,)), axis, dtype=dtype)
         ret = torch.flip(x, dims=(axis,))
-    if ivy.exists(out):
-        return ivy.inplace_update(out, ret)
-    return ret
+    return ivy.inplace_update(out, ret) if ivy.exists(out) else ret
 
 
 cumprod.support_native_out = True

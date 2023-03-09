@@ -170,9 +170,7 @@ def dsplit(
 
 def atleast_1d(*arys: torch.Tensor) -> List[torch.Tensor]:
     transformed = torch.atleast_1d(*arys)
-    if isinstance(transformed, tuple):
-        return list(transformed)
-    return transformed
+    return list(transformed) if isinstance(transformed, tuple) else transformed
 
 
 def dstack(
@@ -188,16 +186,12 @@ def dstack(
 
 def atleast_2d(*arys: torch.Tensor) -> List[torch.Tensor]:
     transformed = torch.atleast_2d(*arys)
-    if isinstance(transformed, tuple):
-        return list(transformed)
-    return transformed
+    return list(transformed) if isinstance(transformed, tuple) else transformed
 
 
 def atleast_3d(*arys: Union[torch.Tensor, bool, Number]) -> List[torch.Tensor]:
     transformed = torch.atleast_3d(*arys)
-    if isinstance(transformed, tuple):
-        return list(transformed)
-    return transformed
+    return list(transformed) if isinstance(transformed, tuple) else transformed
 
 
 @with_unsupported_dtypes({"1.11.0 and below": ("float16", "bfloat16")}, backend_version)
@@ -212,21 +206,20 @@ def take_along_axis(
 ) -> torch.Tensor:
     if arr.ndim != indices.ndim:
         raise ivy.utils.exceptions.IvyException(
-            "arr and indices must have the same number of dimensions;"
-            + f" got {arr.ndim} vs {indices.ndim}"
+            f"arr and indices must have the same number of dimensions; got {arr.ndim} vs {indices.ndim}"
         )
     indices = indices.long()
     if mode not in ["clip", "fill", "drop"]:
         raise ValueError(
             f"Invalid mode '{mode}'. Valid modes are 'clip', 'fill', 'drop'."
         )
-    arr_shape = arr.shape
     if axis < 0:
         axis += arr.ndim
+    arr_shape = arr.shape
     if mode == "clip":
         max_index = arr.shape[axis] - 1
         indices = torch.clamp(indices, 0, max_index)
-    elif mode == "fill" or mode == "drop":
+    elif mode in {"fill", "drop"}:
         if "float" in str(arr.dtype):
             fill_value = float("nan")
         elif "uint" in str(arr.dtype):

@@ -40,14 +40,16 @@ def _differentiable_linspace(start, stop, num, *, device, dtype=None):
     increments = increment_tiled * torch.linspace(
         1, n_m_1, n_m_1, device=device, dtype=dtype
     )
-    res = torch.cat(
-        (torch.unsqueeze(torch.tensor(start, dtype=dtype), 0), start + increments), 0
+    return torch.cat(
+        (
+            torch.unsqueeze(torch.tensor(start, dtype=dtype), 0),
+            start + increments,
+        ),
+        0,
     )
-    return res
 
 
 @with_unsupported_dtypes({"1.11.0 and below": ("float16",)}, backend_version)
-# noinspection PyUnboundLocalVariable,PyShadowingNames
 def arange(
     start: float,
     /,
@@ -62,20 +64,19 @@ def arange(
         stop = start
         start = 0
     if (step > 0 and start > stop) or (step < 0 and start < stop):
-        if isinstance(stop, float):
-            stop = float(start)
-        else:
-            stop = start
+        stop = float(start) if isinstance(stop, float) else start
     if dtype is None:
-        if isinstance(start, int) and isinstance(stop, int) and isinstance(step, int):
-            return torch.arange(start, stop, step, dtype=torch.int64, device=device).to(
-                torch.int32
-            )
-        else:
-            return torch.arange(start, stop, step, device=device)
-    else:
-        dtype = ivy.as_native_dtype(ivy.default_dtype(dtype=dtype))
-        return torch.arange(start, stop, step, dtype=dtype, device=device)
+        return (
+            torch.arange(
+                start, stop, step, dtype=torch.int64, device=device
+            ).to(torch.int32)
+            if isinstance(start, int)
+            and isinstance(stop, int)
+            and isinstance(step, int)
+            else torch.arange(start, stop, step, device=device)
+        )
+    dtype = ivy.as_native_dtype(ivy.default_dtype(dtype=dtype))
+    return torch.arange(start, stop, step, dtype=dtype, device=device)
 
 
 arange.support_native_out = True
@@ -86,12 +87,12 @@ def _stack_tensors(x, dtype):
         for i, item in enumerate(x):
             x[i] = _stack_tensors(item, dtype)
         x = torch.stack(x)
-    else:
-        if isinstance(x, (list, tuple)):
-            if isinstance(x[0], torch.Tensor):
-                x = torch.stack([torch.as_tensor(i, dtype=dtype) for i in x])
-            else:
-                x = torch.as_tensor(x, dtype=dtype)
+    elif isinstance(x, (list, tuple)):
+        x = (
+            torch.stack([torch.as_tensor(i, dtype=dtype) for i in x])
+            if isinstance(x[0], torch.Tensor)
+            else torch.as_tensor(x, dtype=dtype)
+        )
     return x
 
 
@@ -132,25 +133,21 @@ def asarray(
         if dtype is None:
             dtype = ivy.default_dtype(item=obj, as_native=True)
 
-        # if `obj` is a list of specifically tensors or
-        # a multidimensional list which contains a tensor
         if isinstance(obj[0], torch.Tensor) or contain_tensor:
-            if copy is True:
-                return (
+            return (
+                (
                     torch.stack([torch.as_tensor(i, dtype=dtype) for i in obj])
                     .clone()
                     .detach()
                     .to(device)
                 )
-            else:
-                return _stack_tensors(obj, dtype).to(device)
-
-        # if obj is a list of other objects, expected to be a numerical type.
+                if copy is True
+                else _stack_tensors(obj, dtype).to(device)
+            )
+        if copy is True:
+            return torch.as_tensor(obj, dtype=dtype).clone().detach().to(device)
         else:
-            if copy is True:
-                return torch.as_tensor(obj, dtype=dtype).clone().detach().to(device)
-            else:
-                return torch.as_tensor(obj, dtype=dtype).to(device)
+            return torch.as_tensor(obj, dtype=dtype).to(device)
 
     elif isinstance(obj, np.ndarray) and dtype is None:
         dtype = ivy.as_native_dtype(ivy.as_ivy_dtype(obj.dtype.name))
@@ -167,10 +164,10 @@ def asarray(
 
     if copy is True:
         ret = torch.as_tensor(obj, dtype=dtype).clone().detach()
-        return ret.to(device) if ret.device != device else ret
     else:
         ret = torch.as_tensor(obj, dtype=dtype)
-        return ret.to(device) if ret.device != device else ret
+
+    return ret.to(device) if ret.device != device else ret
 
 
 def empty(
@@ -328,20 +325,20 @@ def linspace(
     if axis is None:
         axis = -1
     if not endpoint:
-        if dtype is not None:
-            ans = linspace_helper(
+        ans = (
+            linspace_helper(
                 start, stop, num + 1, axis, dtype=dtype, device=device
             )
-        else:
-            ans = linspace_helper(start, stop, num + 1, axis, device=device)
+            if dtype is not None
+            else linspace_helper(start, stop, num + 1, axis, device=device)
+        )
         if axis < 0:
             axis += len(ans.shape)
         ans = ans[_slice_at_axis(slice(None, -1), axis)]
+    elif dtype is not None:
+        ans = linspace_helper(start, stop, num, axis, dtype=dtype, device=device)
     else:
-        if dtype is not None:
-            ans = linspace_helper(start, stop, num, axis, dtype=dtype, device=device)
-        else:
-            ans = linspace_helper(start, stop, num, axis, device=device)
+        ans = linspace_helper(start, stop, num, axis, device=device)
     if (
         endpoint
         and ans.shape[0] > 1
@@ -388,8 +385,7 @@ def linspace_helper(start, stop, num, axis=None, *, dtype=None, device):
         if num == 1:
             return (
                 torch.ones(
-                    stop_shape[:axis] + [1] + stop_shape[axis:],
-                    device=device,
+                    sos_shape[:axis] + [1] + sos_shape[axis:], device=device
                 )
                 * start
             )
@@ -412,7 +408,7 @@ def linspace_helper(start, stop, num, axis=None, *, dtype=None, device):
                 for strt, stp in zip(start, stop)
             ]
         torch.cat(res, -1).reshape(start_shape + [num])
-    elif start_is_array and not stop_is_array:
+    elif start_is_array:
         if num < start.shape[0]:
             start = start.unsqueeze(-1)
             diff = stop - start
@@ -422,7 +418,7 @@ def linspace_helper(start, stop, num, axis=None, *, dtype=None, device):
             res.append(torch.ones_like(start, device=device) * stop)
         else:
             res = [linspace_method(strt, stop, num, device=device) for strt in start]
-    elif not start_is_array and stop_is_array:
+    elif stop_is_array:
         if num < stop.shape[0]:
             stop = stop.unsqueeze(-1)
             diff = stop - start
@@ -568,9 +564,7 @@ def copy_array(
     to_ivy_array: Optional[bool] = True,
     out: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
-    if to_ivy_array:
-        return ivy.to_ivy(x.clone())
-    return x.clone()
+    return ivy.to_ivy(x.clone()) if to_ivy_array else x.clone()
 
 
 def one_hot(
@@ -592,10 +586,11 @@ def one_hot(
         if on_none and off_none:
             dtype = torch.float32
         else:
-            if not on_none:
-                dtype = torch.tensor(on_value).dtype
-            elif not off_none:
-                dtype = torch.tensor(off_value).dtype
+            dtype = (
+                torch.tensor(off_value).dtype
+                if on_none
+                else torch.tensor(on_value).dtype
+            )
     else:
         dtype = ivy.as_native_dtype(dtype)
 

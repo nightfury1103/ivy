@@ -18,9 +18,11 @@ def det(a):
 
 @to_ivy_arrays_and_back
 def svd(a, /, *, full_matrices=True, compute_uv=True, hermitian=None):
-    if not compute_uv:
-        return ivy.svdvals(a)
-    return ivy.svd(a, full_matrices=full_matrices)
+    return (
+        ivy.svd(a, full_matrices=full_matrices)
+        if compute_uv
+        else ivy.svdvals(a)
+    )
 
 
 @to_ivy_arrays_and_back
@@ -111,15 +113,14 @@ def tensorsolve(a, b, axes=None):
 def tensorinv(a, ind=2):
     old_shape = ivy.shape(a)
     prod = 1
-    if ind > 0:
-        invshape = old_shape[ind:] + old_shape[:ind]
-        for k in old_shape[ind:]:
-            prod *= k
-    else:
+    if ind <= 0:
         raise ValueError("Invalid ind argument.")
+    invshape = old_shape[ind:] + old_shape[:ind]
+    for k in old_shape[ind:]:
+        prod *= k
     a = ivy.reshape(a, shape=(prod, -1))
     ia = ivy.inv(a)
-    new_shape = tuple([*invshape])
+    new_shape = (*invshape, )
     return DeviceArray(ivy.reshape(ia, shape=new_shape))
 
 

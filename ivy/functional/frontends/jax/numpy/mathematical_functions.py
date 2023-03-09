@@ -44,8 +44,7 @@ def ediff1d(ary, to_end=None, to_begin=None):
 
 @to_ivy_arrays_and_back
 def arctan(x):
-    ret = ivy.atan(x)
-    return ret
+    return ivy.atan(x)
 
 
 @to_ivy_arrays_and_back
@@ -117,7 +116,7 @@ def mod(x1, x2, /):
 @to_ivy_arrays_and_back
 def divmod(x1, x2, /):
     x1, x2 = promote_types_of_jax_inputs(x1, x2)
-    return tuple([ivy.floor_divide(x1, x2), ivy.remainder(x1, x2)])
+    return ivy.floor_divide(x1, x2), ivy.remainder(x1, x2)
 
 
 @to_ivy_arrays_and_back
@@ -336,12 +335,11 @@ def expm1(
 @to_ivy_arrays_and_back
 def fmax(x1, x2):
     x1, x2 = promote_types_of_jax_inputs(x1, x2)
-    ret = ivy.where(
+    return ivy.where(
         ivy.bitwise_or(ivy.greater(x1, x2), ivy.isnan(x2)),
         x1,
         x2,
     )
-    return ret
 
 
 @to_ivy_arrays_and_back

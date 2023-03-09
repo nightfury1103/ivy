@@ -17,15 +17,13 @@ def _lstrip_lines(source: str) -> str:
     source = source.lstrip().split("\n")
 
     # If the first line is a decorator
-    if source[0][0] == "@":
-        # If the second line is a function definition
-        if source[1].lstrip()[0:3] == "def":
-            # Work out how many whitespace chars to remove
-            num_chars_to_remove = source[1].find("d")
+    if source[0][0] == "@" and source[1].lstrip()[:3] == "def":
+        # Work out how many whitespace chars to remove
+        num_chars_to_remove = source[1].find("d")
 
-            # The first string needs no changes
-            for i in range(1, len(source)):
-                source[i] = source[i][num_chars_to_remove:]
+        # The first string needs no changes
+        for i in range(1, len(source)):
+            source[i] = source[i][num_chars_to_remove:]
 
     source = "\n".join(source)
     return source
@@ -213,9 +211,6 @@ def _get_fn_dtypes(framework,fn_tree,type, device=None,kind="valid"):
     if type=='1':
         callable_fn, fn_name, fn_mod = _import_fn(fn_tree)
         supported_device_dtypes = _get_supported_devices_dtypes(fn_name, fn_mod)
-        return supported_device_dtypes[framework][
-            device
-        ][kind]
     else:
         method_tree=fn_tree
         callable_method, method_name, _, class_name, method_mod = _import_method(
@@ -224,9 +219,10 @@ def _get_fn_dtypes(framework,fn_tree,type, device=None,kind="valid"):
         supported_device_dtypes = _get_method_supported_devices_dtypes(
             method_name, method_mod, class_name
         )
-        return supported_device_dtypes[framework][
-            device
-        ][kind]
+
+    return supported_device_dtypes[framework][
+        device
+    ][kind]
 
 
 
@@ -261,7 +257,7 @@ def _get_type_dict(framework,fn_tree,type, device=None,kind="valid"):
             set(framework.valid_dtypes).difference(framework.valid_numeric_dtypes)
         )
     else:
-        raise RuntimeError("{} is an unknown kind!".format(kind))
+        raise RuntimeError(f"{kind} is an unknown kind!")
 
 def dtype_handler(framework,type):
     global temp_store
@@ -276,7 +272,7 @@ def dtype_handler(framework,type):
     fn_tree=z
 
     if retrieval_fn.__name__== '_get_type_dict':
-        framework = importlib.import_module("ivy.functional.backends." + framework)
+        framework = importlib.import_module(f"ivy.functional.backends.{framework}")
 
     dtypes = retrieval_fn(framework,fn_tree,type,device,kind)
 
@@ -464,8 +460,12 @@ if __name__ == "__main__":
     fw_lis = []
     for i in arg_lis[1:]:
         if i.split("/")[0] == "jax":
-            fw_lis.append(i.split("/")[0] + "/" + i.split("/")[1])
-            fw_lis.append(i.split("/")[2] + "/" + i.split("/")[3])
+            fw_lis.extend(
+                (
+                    i.split("/")[0] + "/" + i.split("/")[1],
+                    i.split("/")[2] + "/" + i.split("/")[3],
+                )
+            )
         else:
             fw_lis.append(i)
     config.allow_global_framework_imports(fw=fw_lis)
@@ -483,7 +483,7 @@ if __name__ == "__main__":
         try:
 
             z = input()
-            if z =='1' or z=='1a':
+            if z in ['1', '1a']:
                 dtype_handler(arg_lis[2].split("/")[0],z)
                 continue
             if z=='2':
