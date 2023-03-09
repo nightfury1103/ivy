@@ -38,9 +38,11 @@ def gelu(
 
 
 def sigmoid(x: np.ndarray, /, *, out: Optional[np.ndarray] = None) -> np.ndarray:
-    if not ivy.is_array(x):
-        return np.asarray(1 / (1 + np.exp(-x)))
-    return np.asarray(1 / (1 + np.exp(-x))).astype(x.dtype)
+    return (
+        np.asarray(1 / (1 + np.exp(-x))).astype(x.dtype)
+        if ivy.is_array(x)
+        else np.asarray(1 / (1 + np.exp(-x)))
+    )
 
 
 def softmax(

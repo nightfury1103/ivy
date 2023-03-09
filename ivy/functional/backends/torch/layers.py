@@ -152,7 +152,6 @@ def conv1d_transpose(
     {"1.11.0 and below": ("float16", "bfloat16", "complex")},
     backend_version,
 )
-# noinspection PyUnresolvedReferences
 def conv2d(
     x: torch.Tensor,
     filters: torch.Tensor,
@@ -169,9 +168,7 @@ def conv2d(
     x = _pad_before_conv(x, filters, strides, padding, 2, dilations)
     filters = filters.permute(3, 2, 0, 1)
     res = torch.nn.functional.conv2d(x, filters, None, strides, "valid", dilations)
-    if data_format == "NHWC":
-        return res.permute(0, 2, 3, 1)
-    return res
+    return res.permute(0, 2, 3, 1) if data_format == "NHWC" else res
 
 
 @with_unsupported_dtypes(
@@ -233,7 +230,6 @@ def conv2d_transpose(
     },
     backend_version,
 )
-# noinspection PyUnresolvedReferences
 def depthwise_conv2d(
     x: torch.Tensor,
     filters: torch.Tensor,
@@ -258,9 +254,7 @@ def depthwise_conv2d(
     res = torch.nn.functional.conv2d(
         x, filters, None, strides, "valid", dilations, dims_in
     )
-    if data_format == "NHWC":
-        return res.permute(0, 2, 3, 1)
-    return res
+    return res.permute(0, 2, 3, 1) if data_format == "NHWC" else res
 
 
 @with_unsupported_dtypes(

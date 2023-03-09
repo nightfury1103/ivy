@@ -35,11 +35,12 @@ def vorbis_window(
         [
             round(
                 math.sin(
-                    (ivy.pi / 2) * (math.sin(ivy.pi * (i) / (window_length * 2)) ** 2)
+                    (ivy.pi / 2)
+                    * (math.sin(ivy.pi * (i) / (window_length * 2)) ** 2)
                 ),
                 8,
             )
-            for i in range(1, window_length * 2)[0::2]
+            for i in range(1, window_length * 2)[::2]
         ],
         dtype=dtype,
     )
@@ -84,10 +85,11 @@ def kaiser_window(
     dtype: Optional[np.dtype] = None,
     out: Optional[np.ndarray] = None,
 ) -> np.ndarray:
-    if periodic is False:
-        return np.array(np.kaiser(M=window_length, beta=beta), dtype=dtype)
-    else:
-        return np.array(np.kaiser(M=window_length + 1, beta=beta)[:-1], dtype=dtype)
+    return (
+        np.array(np.kaiser(M=window_length + 1, beta=beta)[:-1], dtype=dtype)
+        if periodic
+        else np.array(np.kaiser(M=window_length, beta=beta), dtype=dtype)
+    )
 
 
 kaiser_window.support_native_out = False

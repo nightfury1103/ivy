@@ -75,14 +75,13 @@ def quantile(
 ) -> Union[tf.Tensor, tf.Variable]:
     axis = tuple(axis) if isinstance(axis, list) else axis
 
-    result = tfp.stats.percentile(
+    return tfp.stats.percentile(
         a,
         tf.math.multiply(q, 100),
         axis=axis,
         interpolation=interpolation,
         keepdims=keepdims,
     )
-    return result
 
 
 def corrcoef(
@@ -107,8 +106,7 @@ def corrcoef(
         cov_t = (tf.transpose(xarr - mean_t) @ (xarr - mean_t)) / (x.shape[1] - 1)
 
     cov2_t = tf.linalg.diag(1 / tf.sqrt(tf.linalg.diag_part(cov_t)))
-    cor = cov2_t @ cov_t @ cov2_t
-    return cor
+    return cov2_t @ cov_t @ cov2_t
 
 
 def nanmedian(

@@ -14,9 +14,7 @@ from ivy.functional.ivy.experimental.layers import _padding_ceil_mode, _get_size
 def _from_int_to_tuple(arg, dim):
     if isinstance(arg, int):
         return (arg,) * dim
-    if isinstance(arg, tuple) and len(arg) == 1:
-        return (arg[0],) * dim
-    return arg
+    return (arg[0],) * dim if isinstance(arg, tuple) and len(arg) == 1 else arg
 
 
 def max_pool1d(
@@ -72,9 +70,9 @@ def max_pool2d(
         pad_w = _handle_padding(x.shape[2], strides[1], new_kernel[1], padding)
         padding = [(pad_h // 2, pad_h - pad_h // 2), (pad_w // 2, pad_w - pad_w // 2)]
 
-    x_shape = x.shape[1:-1]
-
     if ceil_mode:
+        x_shape = x.shape[1:-1]
+
         for i in range(2):
             padding[i] = _padding_ceil_mode(
                 x_shape[i], new_kernel[i], padding[i], strides[i]
@@ -86,9 +84,7 @@ def max_pool2d(
 
     # converting minimum value to -inf because tensorflow clips -inf to minimum value
     res = tf.where(res <= ivy.finfo(res.dtype).min, -math.inf, res)
-    if data_format == "NCHW":
-        return tf.transpose(res, (0, 3, 1, 2))
-    return res
+    return tf.transpose(res, (0, 3, 1, 2)) if data_format == "NCHW" else res
 
 
 @with_unsupported_dtypes(
@@ -107,9 +103,7 @@ def max_pool3d(
     if data_format == "NCDHW":
         x = tf.transpose(x, (0, 2, 3, 4, 1))
     res = tf.nn.max_pool3d(x, kernel, strides, padding)
-    if data_format == "NCDHW":
-        return tf.transpose(res, (0, 4, 1, 2, 3))
-    return res
+    return tf.transpose(res, (0, 4, 1, 2, 3)) if data_format == "NCDHW" else res
 
 
 @with_unsupported_dtypes({"2.9.1 and below": ("bfloat16", "float64")}, backend_version)
@@ -149,9 +143,7 @@ def avg_pool2d(
     if data_format == "NCHW":
         x = tf.transpose(x, (0, 2, 3, 1))
     res = tf.nn.avg_pool2d(x, kernel, strides, padding)
-    if data_format == "NCHW":
-        return tf.transpose(res, (0, 3, 1, 2))
-    return res
+    return tf.transpose(res, (0, 3, 1, 2)) if data_format == "NCHW" else res
 
 
 @with_unsupported_dtypes(
@@ -170,9 +162,7 @@ def avg_pool3d(
     if data_format == "NCDHW":
         x = tf.transpose(x, (0, 2, 3, 4, 1))
     res = tf.nn.avg_pool3d(x, kernel, strides, padding)
-    if data_format == "NCDHW":
-        return tf.transpose(res, (0, 4, 1, 2, 3))
-    return res
+    return tf.transpose(res, (0, 4, 1, 2, 3)) if data_format == "NCDHW" else res
 
 
 def dct(
@@ -261,7 +251,7 @@ def fft(
         raise ivy.utils.exceptions.IvyError(
             f"Invalid data points {n}, expecting more than 1"
         )
-    if norm != "backward" and norm != "ortho" and norm != "forward":
+    if norm not in ["backward", "ortho", "forward"]:
         raise ivy.utils.exceptions.IvyError(f"Unrecognized normalization mode {norm}")
     if x.shape[dim] != n:
         s = list(x.shape)
@@ -277,7 +267,7 @@ def fft(
         del s
     operation_name = f"{n} points FFT at dim {dim} with {norm} normalization"
     if dim != -1 or dim != len(x.shape) - 1:
-        permute = [i for i in range(len(x.shape))]
+        permute = list(range(len(x.shape)))
         permute[dim], permute[-1] = permute[-1], permute[dim]
         x = tf.transpose(x, permute)
         ret = tf.signal.fft(x, operation_name)
@@ -298,18 +288,17 @@ def dropout1d(
     data_format: str = "NWC",
     out: Optional[Union[tf.Tensor, tf.Variable]] = None,
 ) -> Union[tf.Tensor, tf.Variable]:
-    if training:
-        if data_format == "NCW":
-            perm = (0, 2, 1) if len(x.shape) == 3 else (1, 0)
-            x = tf.transpose(x, perm)
-        noise_shape = list(x.shape)
-        noise_shape[-2] = 1
-        res = tf.nn.dropout(x, prob, noise_shape=noise_shape)
-        if data_format == "NCW":
-            res = tf.transpose(res, perm)
-        return res
-    else:
+    if not training:
         return x
+    if data_format == "NCW":
+        perm = (0, 2, 1) if len(x.shape) == 3 else (1, 0)
+        x = tf.transpose(x, perm)
+    noise_shape = list(x.shape)
+    noise_shape[-2] = 1
+    res = tf.nn.dropout(x, prob, noise_shape=noise_shape)
+    if data_format == "NCW":
+        res = tf.transpose(res, perm)
+    return res
 
 
 def dropout3d(
@@ -321,21 +310,20 @@ def dropout3d(
     data_format: str = "NDHWC",
     out: Optional[Union[tf.Tensor, tf.Variable]] = None,
 ) -> Union[tf.Tensor, tf.Variable]:
-    if training:
-        is_batched = len(x.shape) == 5
-        if data_format == "NCDHW":
-            perm = (0, 2, 3, 4, 1) if is_batched else (1, 2, 3, 0)
-            x = tf.transpose(x, perm)
-        noise_shape = list(x.shape)
-        sl = slice(1, -1) if is_batched else slice(-1)
-        noise_shape[sl] = [1] * 3
-        res = tf.nn.dropout(x, prob, noise_shape=noise_shape)
-        if data_format == "NCDHW":
-            perm = (0, 4, 1, 2, 3) if is_batched else (3, 0, 1, 2)
-            res = tf.transpose(res, perm)
-        return res
-    else:
+    if not training:
         return x
+    is_batched = len(x.shape) == 5
+    if data_format == "NCDHW":
+        perm = (0, 2, 3, 4, 1) if is_batched else (1, 2, 3, 0)
+        x = tf.transpose(x, perm)
+    noise_shape = list(x.shape)
+    sl = slice(1, -1) if is_batched else slice(-1)
+    noise_shape[sl] = [1] * 3
+    res = tf.nn.dropout(x, prob, noise_shape=noise_shape)
+    if data_format == "NCDHW":
+        perm = (0, 4, 1, 2, 3) if is_batched else (3, 0, 1, 2)
+        res = tf.transpose(res, perm)
+    return res
 
 
 def ifft(
@@ -365,7 +353,7 @@ def ifft(
         raise ivy.utils.exceptions.IvyError(
             f"Invalid data points {n}, expecting more than 1"
         )
-    if norm != "backward" and norm != "ortho" and norm != "forward":
+    if norm not in ["backward", "ortho", "forward"]:
         raise ivy.utils.exceptions.IvyError(f"Unrecognized normalization mode {norm}")
     if x.shape[dim] != n:
         s = list(x.shape)
@@ -381,7 +369,7 @@ def ifft(
         del s
     operation_name = f"{n} points FFT at dim {dim} with {norm} normalization"
     if dim != -1 or dim != len(x.shape) - 1:
-        permute = [i for i in range(len(x.shape))]
+        permute = list(range(len(x.shape)))
         permute[dim], permute[-1] = permute[-1], permute[dim]
         x = tf.transpose(x, permute)
         ret = tf.signal.ifft(x, operation_name)

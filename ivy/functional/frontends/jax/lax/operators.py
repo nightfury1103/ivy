@@ -93,9 +93,7 @@ def concatenate(operands, dimension):
 def _format_rhs(rhs, dims):
     if not isinstance(dims, int):
         dim_nums = dims
-        dims = len(dim_nums[0]) - 2
-        if dim_nums[1][-1] == "O":
-            dims = -1
+        dims = -1 if dim_nums[1][-1] == "O" else len(dim_nums[0]) - 2
     if dims == 1:
         return ivy.permute_dims(rhs, axes=(2, 1, 0))
     elif dims == 2:
@@ -146,10 +144,7 @@ def _get_general_df(data_format):
 def _conv_transpose_padding(k, s, padding):
     if padding == "SAME":
         pad_len = k + s - 2
-        if s > k - 1:
-            pad_a = k - 1
-        else:
-            pad_a = int(ivy.to_scalar(ivy.ceil(pad_len / 2)))
+        pad_a = k - 1 if s > k - 1 else int(ivy.to_scalar(ivy.ceil(pad_len / 2)))
     elif padding == "VALID":
         pad_len = k + s - 2 + ivy.to_scalar(ivy.maximum(k - s, 0))
         pad_a = k - 1
@@ -236,9 +231,9 @@ def conv_general_dilated(
 
 @to_ivy_arrays_and_back
 def convert_element_type(operand, new_dtype):
-    assert can_cast(ivy.dtype(operand), new_dtype), "Cannot cast from {} to {}".format(
+    assert can_cast(
         ivy.dtype(operand), new_dtype
-    )
+    ), f"Cannot cast from {ivy.dtype(operand)} to {new_dtype}"
     return ivy.astype(operand, new_dtype, copy=False)
 
 

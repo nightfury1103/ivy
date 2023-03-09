@@ -21,11 +21,11 @@ from ivy.func_wrapper import _dtype_from_version
 backend_version = {"version": tf.__version__}
 
 # noinspection PyUnresolvedReferences
-if not ivy.is_local():
-    _module_in_memory = sys.modules[__name__]
-else:
-    _module_in_memory = sys.modules[ivy.import_module_path].import_cache[__name__]
-
+_module_in_memory = (
+    sys.modules[ivy.import_module_path].import_cache[__name__]
+    if ivy.is_local()
+    else sys.modules[__name__]
+)
 use = ivy.utils.backend.ContextManager(_module_in_memory)
 
 NativeArray = Tensor
@@ -163,7 +163,7 @@ supports_gradients = True
 def closest_valid_dtype(type=None, /, as_native=False):
     if type is None:
         type = ivy.default_dtype()
-    return ivy.as_ivy_dtype(type) if not as_native else ivy.as_native_dtype(type)
+    return ivy.as_native_dtype(type) if as_native else ivy.as_ivy_dtype(type)
 
 
 backend = "tensorflow"

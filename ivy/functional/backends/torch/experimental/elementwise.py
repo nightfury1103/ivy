@@ -275,9 +275,8 @@ def nan_to_num(
 ) -> torch.Tensor:
     if copy:
         return torch.nan_to_num(x, nan=nan, posinf=posinf, neginf=neginf, out=out)
-    else:
-        x = torch.nan_to_num(x, nan=nan, posinf=posinf, neginf=neginf)
-        return x
+    x = torch.nan_to_num(x, nan=nan, posinf=posinf, neginf=neginf)
+    return x
 
 
 @with_unsupported_dtypes({"1.11.0 and below": ("float16",)}, backend_version)
@@ -422,9 +421,7 @@ def gradient(
         spacing = [spacing] * len(axis)
 
     grad = torch.gradient(x, spacing=spacing, dim=axis, edge_order=edge_order)
-    if len(grad) == 1:
-        return grad[0]
-    return grad
+    return grad[0] if len(grad) == 1 else grad
 
 
 def xlogy(

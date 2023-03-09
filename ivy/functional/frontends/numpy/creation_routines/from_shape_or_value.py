@@ -41,9 +41,7 @@ def ones(shape, dtype=None, order="C", *, like=None):
 @handle_numpy_dtype
 @outputs_to_numpy_arrays
 def ones_like(a, dtype=None, order="K", subok=True, shape=None):
-    if shape:
-        return ivy.ones(shape, dtype=dtype)
-    return ivy.ones_like(a, dtype=dtype)
+    return ivy.ones(shape, dtype=dtype) if shape else ivy.ones_like(a, dtype=dtype)
 
 
 @handle_numpy_dtype

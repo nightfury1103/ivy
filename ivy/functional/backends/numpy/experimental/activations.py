@@ -14,9 +14,7 @@ def logit(x: np.ndarray, /, *, eps: Optional[float] = None, out=None):
     else:
         x = np.clip(x, eps, 1 - eps)
     ret = (np.log(x / (1 - x))).astype(x_dtype)
-    if np.isscalar(ret):
-        return np.array(ret)
-    return ret
+    return np.array(ret) if np.isscalar(ret) else ret
 
 
 @_scalar_output_to_0d_array

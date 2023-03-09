@@ -32,11 +32,11 @@ if not ivy.is_local():
 
 
 # noinspection PyUnresolvedReferences
-if not ivy.is_local():
-    _module_in_memory = sys.modules[__name__]
-else:
-    _module_in_memory = sys.modules[ivy.import_module_path].import_cache[__name__]
-
+_module_in_memory = (
+    sys.modules[ivy.import_module_path].import_cache[__name__]
+    if ivy.is_local()
+    else sys.modules[__name__]
+)
 use = ivy.utils.backend.ContextManager(_module_in_memory)
 
 # noinspection PyUnresolvedReferences
@@ -194,7 +194,7 @@ def closest_valid_dtype(type=None, /, as_native=False):
         type = ivy.default_dtype()
     if isinstance(type, str) and type in invalid_dtypes:
         return {"int64": ivy.int32, "uint64": ivy.uint32, "float64": ivy.float32}[type]
-    return ivy.as_ivy_dtype(type) if not as_native else ivy.as_native_dtype(type)
+    return ivy.as_native_dtype(type) if as_native else ivy.as_ivy_dtype(type)
 
 
 backend = "jax"

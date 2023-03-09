@@ -20,10 +20,7 @@ def _transpose_padding_helper(k, s, padding, dilation, diff=0):
     if padding == "SAME":
         pad_len = k + s - 2
         pad_len -= diff
-        if s > k - 1:
-            pad_a = k - 1
-        else:
-            pad_a = int(jnp.ceil(pad_len / 2))
+        pad_a = k - 1 if s > k - 1 else int(jnp.ceil(pad_len / 2))
     else:
         pad_len = k + s - 2 + max(k - s, 0)
         pad_a = k - 1
@@ -43,13 +40,12 @@ def _get_tranpose_padding(
     elif len(output_shape) == dims:
         output_shape = [x_shape[0]] + list(output_shape) + [filter_shape[-1]]
     shape_diff = [-(output_shape[1 + i] - new_shape[i]) for i in range(dims)]
-    pad_list = [
+    return [
         _transpose_padding_helper(
             filter_shape[i], strides[i], padding, dilations[i], shape_diff[i]
         )
         for i in range(dims)
     ]
-    return pad_list
 
 
 def conv1d(
@@ -85,10 +81,7 @@ def conv1d_transpose(
     strides = (strides,) if isinstance(strides, int) else strides
     dilations = (dilations,) if isinstance(dilations, int) else dilations
     filters = jnp.swapaxes(filters, -1, -2)
-    if data_format == "NWC":
-        x_shape = list(x.shape[1:2])
-    else:
-        x_shape = list(x.shape[2:])
+    x_shape = list(x.shape[1:2]) if data_format == "NWC" else list(x.shape[2:])
     padding = _get_tranpose_padding(
         x_shape, filters.shape, strides, padding, 1, dilations, output_shape
     )
@@ -142,10 +135,7 @@ def conv2d_transpose(
     strides = [strides] * 2 if isinstance(strides, int) else strides
     dilations = [dilations] * 2 if isinstance(dilations, int) else dilations
     filters = jnp.swapaxes(filters, -1, -2)
-    if data_format == "NHWC":
-        x_shape = list(x.shape[1:3])
-    else:
-        x_shape = list(x.shape[2:])
+    x_shape = list(x.shape[1:3]) if data_format == "NHWC" else list(x.shape[2:])
     padding = _get_tranpose_padding(
         x_shape, filters.shape, strides, padding, 2, dilations, output_shape
     )
@@ -228,10 +218,7 @@ def conv3d_transpose(
     strides = [strides] * 3 if isinstance(strides, int) else strides
     dilations = [dilations] * 3 if isinstance(dilations, int) else dilations
     filters = jnp.swapaxes(filters, -1, -2)
-    if data_format == "NDHWC":
-        x_shape = list(x.shape[1:4])
-    else:
-        x_shape = list(x.shape[2:])
+    x_shape = list(x.shape[1:4]) if data_format == "NDHWC" else list(x.shape[2:])
     padding = _get_tranpose_padding(
         x_shape, filters.shape, strides, padding, 3, dilations, output_shape
     )
@@ -278,7 +265,7 @@ def conv_general_dilated(
     dilations = [dilations] * dims if isinstance(dilations, int) else dilations
     x_dilations = [x_dilations] * dims if isinstance(x_dilations, int) else x_dilations
     filter_df = _get_filter_dataformat(dims)
-    if not len(x_dilations) == x_dilations.count(1):
+    if len(x_dilations) != x_dilations.count(1):
         new_pad = [0] * dims
         if data_format == "channel_last":
             x_shape = list(x.shape[1 : dims + 1])

@@ -94,11 +94,11 @@ def max_pool2d(
 
     if data_format == "NHWC":
         x = x.permute(0, 3, 1, 2)
-    x_shape = list(x.shape[2:])
-
-    new_kernel = [kernel[i] + (kernel[i] - 1) * (dilation[i] - 1) for i in range(2)]
-
     if isinstance(padding, str):
+        x_shape = list(x.shape[2:])
+
+        new_kernel = [kernel[i] + (kernel[i] - 1) * (dilation[i] - 1) for i in range(2)]
+
         pad_h = _handle_padding(x_shape[0], strides[0], new_kernel[0], padding)
         pad_w = _handle_padding(x_shape[1], strides[1], new_kernel[1], padding)
         pad_list = [pad_w // 2, pad_w - pad_w // 2, pad_h // 2, pad_h - pad_h // 2]
@@ -114,9 +114,7 @@ def max_pool2d(
     )
 
     res = torch.nn.functional.max_pool2d(x, kernel, strides, 0, dilation, ceil_mode)
-    if data_format == "NHWC":
-        return res.permute(0, 2, 3, 1)
-    return res
+    return res.permute(0, 2, 3, 1) if data_format == "NHWC" else res
 
 
 @with_unsupported_dtypes(
@@ -164,10 +162,9 @@ def max_pool3d(
         ],
         value=float("-inf"),
     )
-    if padding != "VALID" and padding != "SAME":
+    if padding not in ["VALID", "SAME"]:
         raise ivy.utils.exceptions.IvyException(
-            "Invalid padding arg {}\n"
-            'Must be one of: "VALID" or "SAME"'.format(padding)
+            f'Invalid padding arg {padding}\nMust be one of: "VALID" or "SAME"'
         )
     res = torch.nn.functional.max_pool3d(x, kernel, strides, 0)
     if data_format == "NDHWC":
@@ -248,15 +245,12 @@ def avg_pool2d(
         [pad_w // 2, pad_w - pad_w // 2, pad_h // 2, pad_h - pad_h // 2],
         mode="replicate",
     )
-    if padding != "VALID" and padding != "SAME":
+    if padding not in ["VALID", "SAME"]:
         raise ivy.utils.exceptions.IvyException(
-            "Invalid padding arg {}\n"
-            'Must be one of: "VALID" or "SAME"'.format(padding)
+            f'Invalid padding arg {padding}\nMust be one of: "VALID" or "SAME"'
         )
     res = torch.nn.functional.avg_pool2d(x, kernel, strides, 0)
-    if data_format == "NHWC":
-        return res.permute(0, 2, 3, 1)
-    return res
+    return res.permute(0, 2, 3, 1) if data_format == "NHWC" else res
 
 
 @with_unsupported_dtypes(
@@ -304,10 +298,9 @@ def avg_pool3d(
         ],
         mode="replicate",
     )
-    if padding != "VALID" and padding != "SAME":
+    if padding not in ["VALID", "SAME"]:
         raise ivy.utils.exceptions.IvyException(
-            "Invalid padding arg {}\n"
-            'Must be one of: "VALID" or "SAME"'.format(padding)
+            f'Invalid padding arg {padding}\nMust be one of: "VALID" or "SAME"'
         )
     res = torch.nn.functional.avg_pool3d(x, kernel, strides, 0)
     if data_format == "NDHWC":
@@ -351,9 +344,7 @@ def dct(
         axis_idx = [slice(None)] * len(x.shape)
         axis_idx[axis] = slice(1, -1)
         x = torch.concat([x, x.flip(axis)[axis_idx]], dim=axis)
-        dct_out = torch.real(torch.fft.rfft(x, dim=axis))
-        return dct_out
-
+        return torch.real(torch.fft.rfft(x, dim=axis))
     elif type == 2:
         scale_dims = [1] * len(x.shape)
         scale_dims[axis] = axis_dim
@@ -396,13 +387,11 @@ def dct(
 
         axis_idx = [slice(None)] * len(x.shape)
         axis_idx[axis] = slice(None, axis_dim)
-        dct_out = torch.real(
+        return torch.real(
             torch.fft.irfft(
                 scale * torch.complex(x, real_zero), n=2 * axis_dim, axis=axis
             )
         )[axis_idx]
-        return dct_out
-
     elif type == 4:
         dct_2 = dct(x, type=2, n=2 * axis_dim, axis=axis, norm=None)
         axis_idx = [slice(None)] * len(x.shape)
@@ -441,7 +430,7 @@ def fft(
         raise ivy.utils.exceptions.IvyError(
             f"Invalid data points {n}, expecting more than 1"
         )
-    if norm != "backward" and norm != "ortho" and norm != "forward":
+    if norm not in ["backward", "ortho", "forward"]:
         raise ivy.utils.exceptions.IvyError(f"Unrecognized normalization mode {norm}")
     return torch.fft.fft(x, n, dim, norm, out=out)
 
@@ -455,20 +444,19 @@ def dropout1d(
     data_format: str = "NWC",
     out: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
-    if training:
-        if data_format == "NWC":
-            perm = (0, 2, 1) if len(x.shape) == 3 else (1, 0)
-            x = torch.permute(x, perm)
-        # ToDo: switch to native dropout1d once torch version is updated.
-        noise_shape = list(x.shape)
-        noise_shape[-1] = 1
-        mask = torch.rand(noise_shape) > prob
-        res = torch.where(mask, x / (1 - prob), torch.zeros_like(x))
-        if data_format == "NWC":
-            res = torch.permute(res, perm)
-        return res
-    else:
+    if not training:
         return x
+    if data_format == "NWC":
+        perm = (0, 2, 1) if len(x.shape) == 3 else (1, 0)
+        x = torch.permute(x, perm)
+    # ToDo: switch to native dropout1d once torch version is updated.
+    noise_shape = list(x.shape)
+    noise_shape[-1] = 1
+    mask = torch.rand(noise_shape) > prob
+    res = torch.where(mask, x / (1 - prob), torch.zeros_like(x))
+    if data_format == "NWC":
+        res = torch.permute(res, perm)
+    return res
 
 
 @with_unsupported_dtypes(
@@ -489,22 +477,21 @@ def dropout3d(
     data_format: str = "NDHWC",
     out: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
-    if training:
-        is_batched = len(x.shape) == 5
-        if data_format == "NDHWC":
-            perm = (0, 4, 1, 2, 3) if is_batched else (3, 0, 1, 2)
-            x = torch.permute(x, perm)
-        # ToDo: switch to native dropout1d once torch version is updated.
-        noise_shape = list(x.shape)
-        noise_shape[-3:] = [1] * 3
-        mask = torch.rand(noise_shape) > prob
-        res = torch.where(mask, x / (1 - prob), torch.zeros_like(x))
-        if data_format == "NDHWC":
-            perm = (0, 2, 3, 4, 1) if is_batched else (1, 2, 3, 0)
-            res = torch.permute(res, perm)
-        return res
-    else:
+    if not training:
         return x
+    is_batched = len(x.shape) == 5
+    if data_format == "NDHWC":
+        perm = (0, 4, 1, 2, 3) if is_batched else (3, 0, 1, 2)
+        x = torch.permute(x, perm)
+    # ToDo: switch to native dropout1d once torch version is updated.
+    noise_shape = list(x.shape)
+    noise_shape[-3:] = [1] * 3
+    mask = torch.rand(noise_shape) > prob
+    res = torch.where(mask, x / (1 - prob), torch.zeros_like(x))
+    if data_format == "NDHWC":
+        perm = (0, 2, 3, 4, 1) if is_batched else (1, 2, 3, 0)
+        res = torch.permute(res, perm)
+    return res
 
 
 def ifft(
@@ -534,7 +521,7 @@ def ifft(
         raise ivy.utils.exceptions.IvyError(
             f"Invalid data points {n}, expecting more than 1"
         )
-    if norm != "backward" and norm != "ortho" and norm != "forward":
+    if norm not in ["backward", "ortho", "forward"]:
         raise ivy.utils.exceptions.IvyError(f"Unrecognized normalization mode {norm}")
     return torch.fft.ifft(x, n, dim, norm, out=out).resolve_conj()
 

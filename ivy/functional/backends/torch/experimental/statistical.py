@@ -57,15 +57,12 @@ def quantile(
     out: Optional[torch.tensor] = None,
 ) -> torch.tensor:
     temp = a.to(torch.float64)
-    if isinstance(q, torch.tensor):
-        qt = q.to(torch.float64)
-    else:
-        qt = q
-    if isinstance(axis, list) or isinstance(axis, tuple):
+    qt = q.to(torch.float64) if isinstance(q, torch.tensor) else q
+    if isinstance(axis, (list, tuple)):
         dimension = len(a.size())
         for x in axis:
             axis1 = x
-            for axis2 in range(x + 1, dimension):
+            for axis2 in range(axis1 + 1, dimension):
                 temp = torch.transpose(temp, axis1, axis2)
                 axis1 = axis2
         temp = torch.flatten(temp, start_dim=dimension - len(axis))
@@ -93,7 +90,7 @@ def corrcoef(
     else:
         axis = 0 if rowvar else 1
         xarr = torch.concat([x, y], dim=axis)
-        xarr = xarr.T if not rowvar else xarr
+        xarr = xarr if rowvar else xarr.T
 
     return torch.corrcoef(xarr)
 

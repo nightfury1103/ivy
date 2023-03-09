@@ -18,9 +18,7 @@ from ivy.functional.ivy.gradients import (
 def variable(x, /):
     if ivy.is_int_dtype(x.dtype):
         x = ivy.astype(x, ivy.default_float_dtype()).to_native()
-    if not x.is_leaf:
-        return x.detach().requires_grad_()
-    return x.clone().requires_grad_()
+    return x.clone().requires_grad_() if x.is_leaf else x.detach().requires_grad_()
 
 
 def is_variable(x, /, *, exclusive: bool = False):
@@ -178,10 +176,9 @@ def stop_gradient(
 
 def jac(func: Callable):
     grad_fn = lambda x_in: ivy.to_native(func(x_in))
-    callback_fn = lambda x_in: ivy.to_ivy(
+    return lambda x_in: ivy.to_ivy(
         torch.autograd.functional.jacobian(grad_fn, ivy.to_native(x_in))
     )
-    return callback_fn
 
 
 def grad(func: Callable):

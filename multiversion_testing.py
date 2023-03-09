@@ -30,7 +30,7 @@ def direcotry_generator(req, base="fw/"):
         pkg, ver = versions.split("/")
         path = base + pkg + "/" + ver
         if not os.path.exists(path):
-            install_pkg(path, pkg + "==" + ver)
+            install_pkg(path, f"{pkg}=={ver}")
 
 
 def install_pkg(path, pkg, base="fw/"):
@@ -45,8 +45,7 @@ def custom_import(
 ):  # format is pkg_name/version , globally_done means if we have imported any framework before globally
     if globally_done:  # i.e import numpy etc
         if pkg == globally_done:
-            ret = importlib.import_module(pkg.split("/")[0])
-            return ret
+            return importlib.import_module(pkg.split("/")[0])
         sys.path.remove(os.path.abspath(base + globally_done))
         temp = sys.modules.copy()
         sys.modules.clear()
@@ -78,7 +77,7 @@ def allow_global_framework_imports(fw=["numpy/1.23.1/"]):
     global global_temp_sys_module
     global_temp_sys_module = sys.modules.copy()
     for framework in fw:
-        sys.path.insert(1, os.path.abspath("fw/" + framework))
+        sys.path.insert(1, os.path.abspath(f"fw/{framework}"))
     print(sys.path)
 
 

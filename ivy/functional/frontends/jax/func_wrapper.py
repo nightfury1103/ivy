@@ -16,9 +16,7 @@ def _from_jax_frontend_array_to_ivy_array(x):
         and x.ivy_array.shape == ()
     ):
         return ivy.to_scalar(x.ivy_array)
-    if hasattr(x, "ivy_array"):
-        return x.ivy_array
-    return x
+    return x.ivy_array if hasattr(x, "ivy_array") else x
 
 
 def _from_ivy_array_to_jax_frontend_array(x, nested=False, include_derived=None):
@@ -47,9 +45,7 @@ def _from_ivy_array_to_jax_frontend_array_weak_type(
 
 
 def _native_to_ivy_array(x):
-    if isinstance(x, ivy.NativeArray):
-        return ivy.array(x)
-    return x
+    return ivy.array(x) if isinstance(x, ivy.NativeArray) else x
 
 
 def _to_ivy_array(x):

@@ -64,9 +64,6 @@ def _get_fn_dtypes(framework,fn_tree,type, device=None,kind="valid"):
     if type=='1':
         callable_fn, fn_name, fn_mod = _import_fn(fn_tree)
         supported_device_dtypes = _get_supported_devices_dtypes(fn_name, fn_mod)
-        return supported_device_dtypes[framework][
-            device
-        ][kind]
     else:
         method_name, class_tree, split_index = type
 
@@ -79,9 +76,10 @@ def _get_fn_dtypes(framework,fn_tree,type, device=None,kind="valid"):
         supported_device_dtypes = _get_method_supported_devices_dtypes(
             method_name, class_module, class_name
         )
-        return supported_device_dtypes[framework][
-            device
-        ][kind]
+
+    return supported_device_dtypes[framework][
+        device
+    ][kind]
 
 
 def _get_type_dict(framework,fn_tree,type, device=None,kind="valid"):
@@ -114,7 +112,7 @@ def _get_type_dict(framework,fn_tree,type, device=None,kind="valid"):
             set(framework.valid_dtypes).difference(framework.valid_numeric_dtypes)
         )
     else:
-        raise RuntimeError("{} is an unknown kind!".format(kind))
+        raise RuntimeError(f"{kind} is an unknown kind!")
 
 
 def dtype_handler(framework,type):
@@ -131,7 +129,7 @@ def dtype_handler(framework,type):
     fn_tree=z
 
     if retrieval_fn.__name__== '_get_type_dict':
-        framework = importlib.import_module("ivy.functional.backends." + framework)
+        framework = importlib.import_module(f"ivy.functional.backends.{framework}")
     dtypes = retrieval_fn(framework,fn_tree,type,device,kind)
     dtypes = jsonpickle.dumps(dtypes,kind)
     print(dtypes)
@@ -213,14 +211,13 @@ def test_frontend_method():
     ):
         frontend_ret_np_flat = [numpy.asarray(frontend_ret, dtype=numpy.int32)]
         ret = jsonpickle.dumps({"a": 0, "b": frontend_ret_np_flat})
-        print(ret)
     elif ivy.isscalar(frontend_ret):
         frontend_ret_np_flat = [numpy.asarray(frontend_ret)]
         ret = jsonpickle.dumps({"a": 0, "b": frontend_ret_np_flat})
-        print(ret)
     else:
         ret = jsonpickle.dumps({"a": 1, "b": ivy.to_numpy(frontend_ret)})
-        print(ret)
+
+    print(ret)
 
 
 if __name__ == "__main__":
@@ -229,8 +226,12 @@ if __name__ == "__main__":
     fw_lis = []
     for i in arg_lis[1:]:
         if i.split("/")[0] == "jax":
-            fw_lis.append(i.split("/")[0] + "/" + i.split("/")[1])
-            fw_lis.append(i.split("/")[2] + "/" + i.split("/")[3])
+            fw_lis.extend(
+                (
+                    i.split("/")[0] + "/" + i.split("/")[1],
+                    i.split("/")[2] + "/" + i.split("/")[3],
+                )
+            )
         else:
             fw_lis.append(i)
     config.allow_global_framework_imports(fw=fw_lis)
@@ -252,7 +253,7 @@ if __name__ == "__main__":
     while j:
         try:
             z = input()
-            if z == '1' or z == '1a':
+            if z in ['1', '1a']:
                 dtype_handler(arg_lis[2].split("/")[0], z)
                 continue
             if z == "2":
@@ -299,7 +300,7 @@ if __name__ == "__main__":
             )
 
             frontend_ret = frontend_fw.__dict__[func](*args_frontend, **kwargs_frontend)
-            if isinstance(frontend_ret,tuple) or isinstance(frontend_ret,list):
+            if isinstance(frontend_ret, (tuple, list)):
                 frontend_ret=ivy.nested_map(frontend_ret,ivy.to_numpy)
             else:
                 frontend_ret = ivy.to_numpy(frontend_ret)

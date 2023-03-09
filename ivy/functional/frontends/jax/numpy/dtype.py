@@ -40,7 +40,7 @@ def can_cast(from_, to, casting="safe"):
             "to must be one of dtype, or dtype specifier"
         )
 
-    if casting == "no" or casting == "equiv":
+    if casting in ["no", "equiv"]:
         return from_ == to
 
     if casting == "safe":
@@ -52,10 +52,7 @@ def can_cast(from_, to, casting="safe"):
         elif ivy.is_int_dtype(from_) and ("float" in to or "complex" in to):
             return True
         elif ivy.is_float_dtype(from_) and ("float" in to or "complex" in to):
-            if "bfloat" in from_ and "float16" in to:
-                return False
-            return True
-
+            return "bfloat" not in from_ or "float16" not in to
         elif ivy.is_uint_dtype(from_) and (
             "int" in to or "float" in to or "complex" in to
         ):
@@ -70,9 +67,7 @@ def can_cast(from_, to, casting="safe"):
             return True
         else:
             return to in jax_numpy_casting_table[from_]
-    if casting == "unsafe":
-        return True
-    return False
+    return casting == "unsafe"
 
 
 def promote_types(type1, type2, /):

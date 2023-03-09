@@ -52,11 +52,9 @@ def argmin(a, axis=None, out=None, keepdims=None):
 
 @to_ivy_arrays_and_back
 def bincount(x, weights=None, minlength=0, *, length=None):
-    x_list = []
-    for i in range(x.shape[0]):
-        x_list.append(int(x[i]))
+    x_list = [int(x[i]) for i in range(x.shape[0])]
     max_val = int(ivy.max(ivy.array(x_list)))
-    ret = [x_list.count(i) for i in range(0, max_val + 1)]
+    ret = [x_list.count(i) for i in range(max_val + 1)]
     ret = ivy.array(ret)
     ret = ivy.astype(ret, ivy.as_ivy_dtype(ivy.int64))
     return ret
@@ -152,7 +150,7 @@ amax = max
 def average(a, axis=None, weights=None, returned=False, keepdims=False):
 
     # canonicalize_axis to ensure axis or the values in axis > 0
-    if isinstance(axis, tuple) or isinstance(axis, list):
+    if isinstance(axis, (tuple, list)):
         a_ndim = len(ivy.shape(a))
         new_axis = [0] * len(axis)
         for i, v in enumerate(axis):
@@ -161,10 +159,7 @@ def average(a, axis=None, weights=None, returned=False, keepdims=False):
                     f"axis {v} is out of bounds for array of \
                     dimension {a_ndim}"
                 )
-            if v < 0:
-                new_axis[i] = v + a_ndim
-            else:
-                new_axis[i] = v
+            new_axis[i] = v + a_ndim if v < 0 else v
         axis = tuple(new_axis)
 
     if weights is None:
@@ -208,7 +203,7 @@ def average(a, axis=None, weights=None, returned=False, keepdims=False):
                     "Single axis expected when shapes of a and \
                     weights differ"
                 )
-            elif not weights.shape[0] == a.shape[axis]:
+            elif weights.shape[0] != a.shape[axis]:
                 raise ValueError(
                     "Length of weights not compatible with \
                     specified axis."
@@ -251,10 +246,9 @@ def nanmax(
             if isinstance(axis, (tuple, list)) or ivy.is_array(axis):
                 # introducing the initial in one dimension is enough
                 ax = axis[0] % len(s)
-                s[ax] = 1
             else:
                 ax = axis % len(s)
-                s[ax] = 1
+            s[ax] = 1
         header = ivy.full(ivy.Shape(s.to_list()), initial, dtype=ivy.dtype(a))
         if axis:
             if isinstance(axis, (tuple, list)) or ivy.is_array(axis):
@@ -299,10 +293,9 @@ def nanmin(
             if isinstance(axis, (tuple, list)) or ivy.is_array(axis):
                 # introducing the initial in one dimension is enough
                 ax = axis[0] % len(s)
-                s[ax] = 1
             else:
                 ax = axis % len(s)
-                s[ax] = 1
+            s[ax] = 1
         header = ivy.full(ivy.Shape(s.to_list()), initial, dtype=ivy.dtype(a))
         if axis:
             if isinstance(axis, (tuple, list)) or ivy.is_array(axis):

@@ -54,9 +54,7 @@ def ones(shape, dtype=None):
 @handle_jax_dtype
 @to_ivy_arrays_and_back
 def ones_like(a, dtype=None, shape=None):
-    if shape:
-        return ivy.ones(shape, dtype=dtype)
-    return ivy.ones_like(a, dtype=dtype)
+    return ivy.ones(shape, dtype=dtype) if shape else ivy.ones_like(a, dtype=dtype)
 
 
 @handle_jax_dtype

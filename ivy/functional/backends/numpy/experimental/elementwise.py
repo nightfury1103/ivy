@@ -177,9 +177,7 @@ def count_nonzero(
     if isinstance(axis, list):
         axis = tuple(axis)
     ret = np.count_nonzero(a, axis=axis, keepdims=keepdims)
-    if np.isscalar(ret):
-        return np.array(ret, dtype=dtype)
-    return ret.astype(dtype)
+    return np.array(ret, dtype=dtype) if np.isscalar(ret) else ret.astype(dtype)
 
 
 count_nonzero.support_native_out = False
@@ -227,9 +225,7 @@ def isclose(
     out: Optional[np.ndarray] = None,
 ) -> np.ndarray:
     ret = np.isclose(a, b, rtol=rtol, atol=atol, equal_nan=equal_nan)
-    if np.isscalar(ret):
-        return np.array(ret, dtype=np.bool)
-    return ret
+    return np.array(ret, dtype=np.bool) if np.isscalar(ret) else ret
 
 
 isclose.support_native_out = False
@@ -421,10 +417,7 @@ def xlogy(
     x: np.ndarray, y: np.ndarray, /, *, out: Optional[np.ndarray] = None
 ) -> np.ndarray:
     x, y = promote_types_of_inputs(x, y)
-    if (x == 0).all():
-        return 0.0
-    else:
-        return x * np.log(y)
+    return 0.0 if (x == 0).all() else x * np.log(y)
 
 
 def real(x: np.ndarray, /, *, out: Optional[np.ndarray] = None) -> np.ndarray:

@@ -8,7 +8,7 @@ def directory_generator(req, base="/opt/miniconda/fw/"):
         pkg, ver = versions.split("/")
         path = base + pkg + "/" + ver
         if not os.path.exists(path):
-            install_pkg(path, pkg + "==" + ver)
+            install_pkg(path, f"{pkg}=={ver}")
 
 
 def install_pkg(path, pkg, base="fw/"):

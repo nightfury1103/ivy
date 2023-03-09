@@ -130,10 +130,7 @@ def bitwise_xor(
 
 @with_unsupported_dtypes({"0.3.14 and below": ("complex",)}, backend_version)
 def ceil(x: JaxArray, /, *, out: Optional[JaxArray] = None) -> JaxArray:
-    if "int" in str(x.dtype):
-        return x
-    else:
-        return jnp.ceil(x)
+    return x if "int" in str(x.dtype) else jnp.ceil(x)
 
 
 def cos(x: JaxArray, /, *, out: Optional[JaxArray] = None) -> JaxArray:
@@ -182,10 +179,7 @@ def expm1(x: JaxArray, /, *, out: Optional[JaxArray] = None) -> JaxArray:
 
 @with_unsupported_dtypes({"0.3.14 and below": ("complex",)}, backend_version)
 def floor(x: JaxArray, /, *, out: Optional[JaxArray] = None) -> JaxArray:
-    if "int" in str(x.dtype):
-        return x
-    else:
-        return jnp.floor(x)
+    return x if "int" in str(x.dtype) else jnp.floor(x)
 
 
 @with_unsupported_dtypes({"0.3.14 and below": ("complex",)}, backend_version)
@@ -378,10 +372,7 @@ def remainder(
 
 
 def round(x: JaxArray, /, *, out: Optional[JaxArray] = None) -> JaxArray:
-    if "int" in str(x.dtype):
-        return x
-    else:
-        return jnp.round(x)
+    return x if "int" in str(x.dtype) else jnp.round(x)
 
 
 def sign(x: JaxArray, /, *, out: Optional[JaxArray] = None) -> JaxArray:
@@ -430,10 +421,7 @@ def tanh(x: JaxArray, /, *, out: Optional[JaxArray] = None) -> JaxArray:
 
 @with_unsupported_dtypes({"0.3.14 and below": ("complex",)}, backend_version)
 def trunc(x: JaxArray, /, *, out: Optional[JaxArray] = None) -> JaxArray:
-    if "int" in str(x.dtype):
-        return x
-    else:
-        return jnp.trunc(x)
+    return x if "int" in str(x.dtype) else jnp.trunc(x)
 
 
 # Extra #
@@ -454,9 +442,7 @@ def maximum(
     out: Optional[JaxArray] = None,
 ) -> JaxArray:
     x1, x2 = ivy.promote_types_of_inputs(x1, x2)
-    if use_where:
-        return jnp.where(x1 >= x2, x1, x2)
-    return jnp.maximum(x1, x2)
+    return jnp.where(x1 >= x2, x1, x2) if use_where else jnp.maximum(x1, x2)
 
 
 def minimum(
@@ -468,9 +454,7 @@ def minimum(
     out: Optional[JaxArray] = None,
 ) -> JaxArray:
     x1, x2 = ivy.promote_types_of_inputs(x1, x2)
-    if use_where:
-        return jnp.where(x1 <= x2, x1, x2)
-    return jnp.minimum(x1, x2)
+    return jnp.where(x1 <= x2, x1, x2) if use_where else jnp.minimum(x1, x2)
 
 
 def reciprocal(

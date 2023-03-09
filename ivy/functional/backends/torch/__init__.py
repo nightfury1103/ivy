@@ -9,11 +9,11 @@ from ivy.func_wrapper import _dtype_from_version
 backend_version = {"version": torch.__version__.split("+")[0]}
 
 # noinspection PyUnresolvedReferences
-if not ivy.is_local():
-    _module_in_memory = sys.modules[__name__]
-else:
-    _module_in_memory = sys.modules[ivy.import_module_path].import_cache[__name__]
-
+_module_in_memory = (
+    sys.modules[ivy.import_module_path].import_cache[__name__]
+    if ivy.is_local()
+    else sys.modules[__name__]
+)
 use = ivy.utils.backend.ContextManager(_module_in_memory)
 
 NativeArray = torch.Tensor
@@ -143,7 +143,7 @@ def closest_valid_dtype(type=None, /, as_native=False):
         type = ivy.as_ivy_dtype(
             {"uint16": ivy.uint8, "uint32": ivy.uint8, "uint64": ivy.uint8}[type]
         )
-    return ivy.as_ivy_dtype(type) if not as_native else ivy.as_native_dtype(type)
+    return ivy.as_native_dtype(type) if as_native else ivy.as_ivy_dtype(type)
 
 
 backend = "torch"
